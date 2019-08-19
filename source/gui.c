@@ -10,19 +10,16 @@ static lv_img_dsc_t g_apps_list;
 static lv_img_dsc_t g_apps_list_hover;
 
 void focus_cb(lv_group_t *group, lv_style_t *style) {
-    lv_obj_t *focused = *group->obj_focus;
-
     lv_obj_t **obj;
     LV_LL_READ(group->obj_ll, obj) {
-        lv_obj_t *real_obj = *obj;
         lv_img_dsc_t *dsc;
 
-        if (real_obj == focused)
+        if (obj == group->obj_focus)
             dsc = &g_apps_list_hover;
         else
             dsc = &g_apps_list;
         
-        lv_imgbtn_set_src(real_obj, LV_BTN_STATE_REL, dsc);
+        lv_imgbtn_set_src(*obj, LV_BTN_STATE_REL, dsc);
     }
 }
 
