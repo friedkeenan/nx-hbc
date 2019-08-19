@@ -74,8 +74,8 @@ void setup_buttons() {
     lv_group_add_obj(keypad_group(), btn);
     lv_imgbtn_set_src(btn, LV_BTN_STATE_REL, &g_apps_list);
     lv_imgbtn_set_src(btn, LV_BTN_STATE_PR, &g_apps_list_hover);
-    lv_obj_set_pos(btn, CENTER_X(g_apps_list.header.w), CENTER_Y(g_apps_list.header.h));
+    lv_obj_align(btn, NULL, LV_ALIGN_CENTER, 0, 0);
 
     lv_obj_t *btn2 = lv_imgbtn_create(lv_scr_act(), btn);
-    lv_obj_set_pos(btn2, CENTER_X(g_apps_list.header.w), CENTER_Y(g_apps_list.header.h) + 128);
+    lv_obj_align(btn2, NULL, LV_ALIGN_CENTER, 0, 128);
 }
