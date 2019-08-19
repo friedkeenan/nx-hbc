@@ -18,8 +18,8 @@ int main(int argc, char **argv) {
     if (R_FAILED(rc)) return rc;
 
     setup_screen();
-
     setup_buttons();
+    setup_misc();
 
     while (appletMainLoop()) {
         consoleUpdate(NULL);
