@@ -10,10 +10,8 @@ static lv_color_t g_buffer[LV_HOR_RES_MAX * LV_VER_RES_MAX];
 static lv_group_t *g_keypad_group;
 
 void flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *color_p) {
-    logPrintf("Flush: area(%d, %d, %d, %d)\n", area->x1, area->y1, area->x2, area->y2);
     u32 stride;
     lv_color_t *fb = (lv_color_t *) framebufferBegin(&g_framebuffer, &stride);
-    logPrintf("Flush: stride(%#x)\n", stride);
 
     for (int y = area->y1; y <= area->y2; y++) {
         for (int x = area->x1; x <= area->x2; x++) {

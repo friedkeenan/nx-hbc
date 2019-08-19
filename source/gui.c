@@ -9,6 +9,23 @@ static lv_img_dsc_t g_background;
 static lv_img_dsc_t g_apps_list;
 static lv_img_dsc_t g_apps_list_hover;
 
+void focus_cb(lv_group_t *group, lv_style_t *style) {
+    lv_obj_t *focused = *group->obj_focus;
+
+    lv_obj_t **obj;
+    LV_LL_READ(group->obj_ll, obj) {
+        lv_obj_t *real_obj = *obj;
+        lv_img_dsc_t *dsc;
+
+        if (real_obj == focused)
+            dsc = &g_apps_list_hover;
+        else
+            dsc = &g_apps_list;
+        
+        lv_imgbtn_set_src(real_obj, LV_BTN_STATE_REL, dsc);
+    }
+}
+
 void setup_screen() {
     u8 *bg_data;
     size_t bg_size;
@@ -54,9 +71,14 @@ void setup_buttons() {
         .data = data,
     };
 
+    lv_group_set_style_mod_cb(keypad_group(), focus_cb);
+
     lv_obj_t *btn = lv_imgbtn_create(lv_scr_act(), NULL);
-    //lv_group_add_obj(keypad_group(), btn);
+    lv_group_add_obj(keypad_group(), btn);
     lv_imgbtn_set_src(btn, LV_BTN_STATE_REL, &g_apps_list);
     lv_imgbtn_set_src(btn, LV_BTN_STATE_PR, &g_apps_list_hover);
     lv_obj_set_pos(btn, CENTER_X(g_apps_list.header.w), CENTER_Y(g_apps_list.header.h));
+
+    lv_obj_t *btn2 = lv_imgbtn_create(lv_scr_act(), btn);
+    lv_obj_set_pos(btn2, CENTER_X(g_apps_list.header.w), CENTER_Y(g_apps_list.header.h) + 128);
 }
