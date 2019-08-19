@@ -7,6 +7,8 @@ static Framebuffer g_framebuffer;
 static lv_disp_buf_t g_disp_buf;
 static lv_color_t g_buffer[LV_HOR_RES_MAX * LV_VER_RES_MAX];
 
+static touchPosition g_touch_pos;
+
 static lv_group_t *g_keypad_group;
 
 void flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *color_p) {
@@ -29,17 +31,15 @@ void flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *color_p) {
 
 bool touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
 
-    static touchPosition touch;
-
     if (hidTouchCount()) {
-        hidTouchRead(&touch, 0);
+        hidTouchRead(&g_touch_pos, 0);
         data->state = LV_INDEV_STATE_PR;
     } else {
         data->state = LV_INDEV_STATE_REL;
     }
 
-    data->point.x = touch.px;
-    data->point.y = touch.py;
+    data->point.x = g_touch_pos.px;
+    data->point.y = g_touch_pos.py;
 
     return false;
 }
