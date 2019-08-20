@@ -9,7 +9,7 @@ static lv_img_dsc_t g_background;
 static lv_img_dsc_t g_apps_list;
 static lv_img_dsc_t g_apps_list_hover;
 
-static lv_obj_t *g_buttons[NUM_BUTTONS] = {0};
+static lv_obj_t *g_app_buttons[NUM_BUTTONS] = {0};
 
 static lv_img_dsc_t g_logo;
 
@@ -29,6 +29,22 @@ void focus_cb(lv_group_t *group, lv_style_t *style) {
             dsc = &g_apps_list;
         
         lv_imgbtn_set_src(*obj, LV_BTN_STATE_REL, dsc);
+        lv_imgbtn_set_src(*obj, LV_BTN_STATE_PR, dsc);
+    }
+}
+
+void app_button_event(lv_obj_t *obj, lv_event_t event) {
+    if (event == LV_EVENT_KEY) {
+        const u32 *key = lv_event_get_data();
+
+        switch (*key) {
+            case LV_KEY_DOWN:
+                lv_group_focus_next(lv_obj_get_group(obj));
+                break;
+            case LV_KEY_UP:
+                lv_group_focus_prev(lv_obj_get_group(obj));
+                break;
+        }
     }
 }
 
@@ -72,15 +88,16 @@ void setup_buttons() {
 
     lv_group_set_style_mod_cb(keypad_group(), focus_cb);
 
-    g_buttons[0] = lv_imgbtn_create(lv_scr_act(), NULL);
-    lv_group_add_obj(keypad_group(), g_buttons[0]);
-    lv_imgbtn_set_src(g_buttons[0], LV_BTN_STATE_REL, &g_apps_list);
-    lv_imgbtn_set_src(g_buttons[0], LV_BTN_STATE_PR, &g_apps_list_hover);
-    lv_obj_align(g_buttons[0], NULL, LV_ALIGN_IN_TOP_MID, 0, (LV_VER_RES_MAX - g_apps_list.header.h * NUM_BUTTONS) / 2);
+    g_app_buttons[0] = lv_imgbtn_create(lv_scr_act(), NULL);
+    lv_group_add_obj(keypad_group(), g_app_buttons[0]);
+    lv_obj_set_event_cb(g_app_buttons[0], app_button_event);
+    lv_imgbtn_set_src(g_app_buttons[0], LV_BTN_STATE_REL, &g_apps_list);
+    lv_imgbtn_set_src(g_app_buttons[0], LV_BTN_STATE_PR, &g_apps_list);
+    lv_obj_align(g_app_buttons[0], NULL, LV_ALIGN_IN_TOP_MID, 0, (LV_VER_RES_MAX - g_apps_list.header.h * NUM_BUTTONS) / 2);
 
     for (int i = 1; i < NUM_BUTTONS; i++) {
-        g_buttons[i] = lv_imgbtn_create(lv_scr_act(), g_buttons[i - 1]);
-        lv_obj_align(g_buttons[i], g_buttons[i - 1], LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
+        g_app_buttons[i] = lv_imgbtn_create(lv_scr_act(), g_app_buttons[i - 1]);
+        lv_obj_align(g_app_buttons[i], g_app_buttons[i - 1], LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
     }
 }
 
