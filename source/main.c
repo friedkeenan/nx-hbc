@@ -35,8 +35,6 @@ int main(int argc, char **argv) {
         lv_tick_inc(1);
     }
 
-    lv_obj_del(lv_scr_act());
-
     assetsExit();
     driversExit();
     logExit();

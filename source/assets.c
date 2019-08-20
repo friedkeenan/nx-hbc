@@ -35,6 +35,10 @@ assetsDataEntry g_assetsDataList[AssetId_Max] = {
     GENASSET("background.bin"),
     GENASSET("apps_list.bin"),
     GENASSET("apps_list_hover.bin"),
+    GENASSET("apps_next.bin"),
+    GENASSET("apps_next_hover.bin"),
+    GENASSET("apps_previous.bin"),
+    GENASSET("apps_previous_hover.bin"),
     GENASSET("logo.bin"),
 };
 

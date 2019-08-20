@@ -25,6 +25,10 @@ typedef enum {
     AssetId_background,
     AssetId_apps_list,
     AssetId_apps_list_hover,
+    AssetId_apps_next,
+    AssetId_apps_next_hover,
+    AssetId_apps_previous,
+    AssetId_apps_previous_hover,
     AssetId_logo,
 
     AssetId_Max
