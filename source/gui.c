@@ -205,8 +205,8 @@ void setup_misc() {
     assetsGetData(AssetId_icon, &data, &size);
     g_icon = (lv_img_dsc_t) {
         .header.always_zero = 0,
-        .header.w = 256,
-        .header.h = 256,
+        .header.w = 96,
+        .header.h = 96,
         .data_size = size,
         .header.cf = LV_IMG_CF_RAW,
         .data = data,
