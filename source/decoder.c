@@ -109,14 +109,9 @@ static lv_res_t jpg_dec_open(lv_img_decoder_t *dec, lv_img_decoder_dsc_t *dsc) {
         return LV_RES_INV;
     }
 
-    /*if (w != img_dsc->header.w || h != img_dsc->header.h) {
-        tjDestroy(decomp);
-        return LV_RES_INV;
-    }*/
-
     u8 *img_data = tjAlloc(w * h * sizeof(lv_color_t));
 
-    if (img_data == NULL || tjDecompress2(decomp, img_dsc->data, img_dsc->data_size, img_data, w, 0, h, TJPF_RGBA, TJFLAG_ACCURATEDCT)) {
+    if (tjDecompress2(decomp, img_dsc->data, img_dsc->data_size, img_data, w, 0, h, TJPF_RGBA, TJFLAG_ACCURATEDCT)) {
         tjFree(img_data);
         tjDestroy(decomp);
         return LV_RES_INV;
