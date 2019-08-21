@@ -211,8 +211,6 @@ void setup_misc() {
         .header.cf = LV_IMG_CF_RAW,
         .data = data,
     };
-    lv_img_decoder_dsc_t dsc;
-    lv_img_decoder_open(&dsc, &g_icon, NULL);
 
     lv_obj_t *icon = lv_img_create(lv_scr_act(), NULL);
     lv_img_set_src(icon, &g_icon);
