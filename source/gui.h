@@ -2,7 +2,7 @@
 
 #include <lvgl/lvgl.h>
 
-#define NUM_BUTTONS 5
+#define MAX_LIST_ROWS 5
 
 void setup_screen();
 void setup_buttons();

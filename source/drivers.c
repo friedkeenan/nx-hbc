@@ -11,7 +11,7 @@ static touchPosition g_touch_pos;
 
 static lv_group_t *g_keypad_group;
 
-void flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *color_p) {
+static void flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *color_p) {
     u32 stride;
     lv_color_t *fb = (lv_color_t *) framebufferBegin(&g_framebuffer, &stride);
 
@@ -29,7 +29,7 @@ void flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *color_p) {
     lv_disp_flush_ready(drv);
 }
 
-bool touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
+static bool touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
 
     if (hidTouchCount()) {
         hidTouchRead(&g_touch_pos, 0);
@@ -44,7 +44,7 @@ bool touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
     return false;
 }
 
-bool keypad_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
+static bool keypad_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
     u64 pressed = hidKeysDown(CONTROLLER_P1_AUTO) | hidKeysHeld(CONTROLLER_P1_AUTO);
 
     data->state = LV_INDEV_STATE_PR;

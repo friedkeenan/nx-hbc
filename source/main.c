@@ -4,6 +4,7 @@
 #include "drivers.h"
 #include "log.h"
 #include "assets.h"
+#include "decoder.h"
 #include "gui.h"
 
 int main(int argc, char **argv) {
@@ -16,6 +17,8 @@ int main(int argc, char **argv) {
 
     Result rc = assetsInit();
     if (R_FAILED(rc)) return rc;
+
+    decoderInitialize();
 
     setup_screen();
     setup_buttons();
