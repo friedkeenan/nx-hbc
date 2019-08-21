@@ -77,7 +77,3 @@ void decoderInitialize() {
     lv_img_decoder_set_open_cb(g_jpg_dec, jpg_dec_open);
     lv_img_decoder_set_close_cb(g_jpg_dec, jpg_dec_close);
 }
-
-lv_img_decoder_t *jpg_decoder() {
-    return g_jpg_dec;
-}
