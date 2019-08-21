@@ -205,8 +205,8 @@ void setup_misc() {
     assetsGetData(AssetId_icon, &data, &size);
     g_icon = (lv_img_dsc_t) {
         .header.always_zero = 0,
-        .header.w = 96,
-        .header.h = 96,
+        .header.w = 192,
+        .header.h = 72,
         .data_size = size,
         .header.cf = LV_IMG_CF_RAW,
         .data = data,
@@ -214,5 +214,5 @@ void setup_misc() {
 
     lv_obj_t *icon = lv_img_create(lv_scr_act(), NULL);
     lv_img_set_src(icon, &g_icon);
-    lv_obj_align(icon, NULL, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_align(icon, g_list_buttons[0], LV_ALIGN_IN_LEFT_MID, (g_list_dscs[0].header.h - g_icon.header.h) / 2, 0);
 }
