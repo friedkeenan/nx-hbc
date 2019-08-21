@@ -6,7 +6,7 @@
 
 static lv_img_decoder_t *g_jpg_dec;
 
-static int pos_from_coord(int x, int y, int w, int h) {
+static int pos_from_coord(int x, int y, int w) {
     return (y * w + x) * sizeof(lv_color_t);
 }
 
@@ -33,25 +33,25 @@ static void downscale_img(u8 *src, u8 *dst, u32 src_w, u32 src_h, u32 dst_w, u32
             int pixel_x = src_x;
             int pixel_y = src_y;
 
-            int pos = pos_from_coord(pixel_x, pixel_y, src_w, src_y);
+            int pos = pos_from_coord(pixel_x, pixel_y, src_w);
             r[0] = src[pos];
             g[0] = src[pos + 1];
             b[0] = src[pos + 2];
             a[0] = src[pos + 3];
 
-            pos = pos_from_coord(pixel_x + 1, pixel_y, src_w, src_y);
+            pos = pos_from_coord(pixel_x + 1, pixel_y, src_w);
             r[1] = src[pos];
             g[1] = src[pos + 1];
             b[1] = src[pos + 2];
             a[1] = src[pos + 3];
 
-            pos = pos_from_coord(pixel_x, pixel_y + 1, src_w, src_y);
+            pos = pos_from_coord(pixel_x, pixel_y + 1, src_w);
             r[2] = src[pos];
             g[2] = src[pos + 1];
             b[2] = src[pos + 2];
             a[2] = src[pos + 3];
 
-            pos = pos_from_coord(pixel_x + 1, pixel_y + 1, src_w, src_y);
+            pos = pos_from_coord(pixel_x + 1, pixel_y + 1, src_w);
             r[3] = src[pos];
             g[3] = src[pos + 1];
             b[3] = src[pos + 2];
@@ -67,7 +67,7 @@ static void downscale_img(u8 *src, u8 *dst, u32 src_w, u32 src_h, u32 dst_w, u32
             w[2] = f[2] * f[1] * 256.0;
             w[3] = f[0] * f[1] * 256.0;
 
-            pos = pos_from_coord(x, y, dst_w, dst_h);
+            pos = pos_from_coord(x, y, dst_w);
             dst[pos] = (r[0] * w[0] + r[1] * w[1] + r[2] * w[2] + r[3] * w[3]) >> 8;
             dst[pos + 1] = (g[0] * w[0] + g[1] * w[1] + g[2] * w[2] + g[3] * w[3]) >> 8;
             dst[pos + 2] = (b[0] * w[0] + b[1] * w[1] + b[2] * w[2] + b[3] * w[3]) >> 8;
@@ -105,6 +105,11 @@ static lv_res_t jpg_dec_open(lv_img_decoder_t *dec, lv_img_decoder_dsc_t *dsc) {
     int w, h, samp, color_space;
 
     if (tjDecompressHeader3(decomp, img_dsc->data, img_dsc->data_size, &w, &h, &samp, &color_space)) {
+        tjDestroy(decomp);
+        return LV_RES_INV;
+    }
+
+    if (img_dsc->header.w > w || img_dsc->header.h > h) {
         tjDestroy(decomp);
         return LV_RES_INV;
     }
