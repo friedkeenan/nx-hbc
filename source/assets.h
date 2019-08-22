@@ -30,7 +30,6 @@ typedef enum {
     AssetId_apps_previous,
     AssetId_apps_previous_hover,
     AssetId_logo,
-    AssetId_icon,
 
     AssetId_Max
 } AssetId;

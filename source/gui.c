@@ -5,6 +5,7 @@
 #include "assets.h"
 #include "decoder.h"
 #include "drivers.h"
+#include "apps.h"
 
 static lv_img_dsc_t g_background;
 
@@ -16,7 +17,7 @@ static lv_img_dsc_t g_arrow_dscs[4] = {0}; // {next_normal, next_hover, prev_nor
 static lv_obj_t *g_arrow_buttons[2] = {0}; // {next, prev}
 
 static lv_img_dsc_t g_logo;
-static lv_img_dsc_t g_icon;
+static app_entry_t g_app;
 
 /*
     Loop through all the buttons in the group;
@@ -202,17 +203,26 @@ void setup_misc() {
     lv_img_set_src(logo, &g_logo);
     lv_obj_align(logo, NULL, LV_ALIGN_IN_BOTTOM_LEFT, 10, -32);
 
-    assetsGetData(AssetId_icon, &data, &size);
-    g_icon = (lv_img_dsc_t) {
-        .header.always_zero = 0,
-        .header.w = 192,
-        .header.h = 72,
-        .data_size = size,
-        .header.cf = LV_IMG_CF_RAW,
-        .data = data,
-    };
+    strcpy(g_app.path, "sdmc:/switch/nx-hbc.nro");
+    lv_res_t res = app_entry_init(&g_app);
+    logPrintf("app_entry_init: %d\n", res);
 
     lv_obj_t *icon = lv_img_create(lv_scr_act(), NULL);
-    lv_img_set_src(icon, &g_icon);
-    lv_obj_align(icon, g_list_buttons[0], LV_ALIGN_IN_LEFT_MID, (g_list_dscs[0].header.h - g_icon.header.h) / 2, 0);
+    lv_img_set_src(icon, &g_app.icon);
+    lv_obj_align(icon, NULL, LV_ALIGN_CENTER, 0, 0);
+
+    lv_obj_t *icon_small = lv_img_create(lv_scr_act(), NULL);
+    lv_img_set_src(icon_small, &g_app.icon_small);
+
+    lv_obj_t *name = lv_label_create(lv_scr_act(), NULL);
+    lv_label_set_static_text(name, g_app.name);
+    lv_obj_align(name, NULL, LV_ALIGN_IN_TOP_MID, 0, 0);
+
+    lv_obj_t *author = lv_label_create(lv_scr_act(), NULL);
+    lv_label_set_static_text(author, g_app.author);
+    lv_obj_align(author, NULL, LV_ALIGN_IN_BOTTOM_MID, 0, 0);
+
+    lv_obj_t *version = lv_label_create(lv_scr_act(), NULL);
+    lv_label_set_static_text(version, g_app.version);
+    lv_obj_align(version, NULL, LV_ALIGN_IN_TOP_RIGHT, 0, 0);
 }
