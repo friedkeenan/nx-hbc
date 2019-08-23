@@ -102,12 +102,14 @@ lv_res_t app_entry_ll_init(lv_ll_t *ll) {
                 continue;
 
             while ((ep = readdir(dp))) {
-                strcat(tmp_path, "/");
-                strcat(tmp_path, ep->d_name);
+                char path[PATH_MAX];
+                strcpy(path, tmp_path);
+                strcat(path, "/");
+                strcat(path, ep->d_name);
 
                 if (strcasecmp(get_ext(ep->d_name), "nro") == 0) {
                     entry = lv_ll_ins_tail(ll);
-                    strcpy(entry->path, tmp_path);
+                    strcpy(entry->path, path);
                     break;
                 }
             }
