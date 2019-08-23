@@ -1,9 +1,13 @@
 #include <lvgl/lvgl.h>
 #include <stdio.h>
+#include <dirent.h>
+#include <limits.h>
+#include <string.h>
 #include <switch.h>
 
 #include "apps.h"
 #include "log.h"
+#include "util.h"
 
 lv_res_t app_entry_init(app_entry_t *entry) {
     FILE *fp = fopen(entry->path, "rb");
@@ -75,4 +79,46 @@ lv_res_t app_entry_init(app_entry_t *entry) {
 
 void app_entry_free(app_entry_t *entry) {
     lv_mem_free(entry->icon.data);
+}
+
+lv_res_t app_entry_ll_init(lv_ll_t *ll) {
+    DIR *app_dp = opendir(APP_DIR);
+    if (app_dp == NULL)
+        return LV_RES_INV;
+
+    lv_ll_init(ll, sizeof(app_entry_t));
+
+    struct dirent *ep;
+    while ((ep = readdir(app_dp))) {
+        char tmp_path[PATH_MAX];
+        tmp_path[0] = '\0';
+        snprintf(tmp_path, sizeof(tmp_path), "%s/%s", APP_DIR, ep->d_name);
+
+        app_entry_t *entry;
+
+        if (is_dir(tmp_path)) {
+            DIR *dp = opendir(tmp_path);
+            if (dp == NULL)
+                continue;
+
+            while ((ep = readdir(dp))) {
+                strcat(tmp_path, "/");
+                strcat(tmp_path, ep->d_name);
+
+                if (strcasecmp(get_ext(ep->d_name), "nro") == 0) {
+                    entry = lv_ll_ins_tail(ll);
+                    strcpy(entry->path, tmp_path);
+                    break;
+                }
+            }
+
+            closedir(dp);
+        } else if (strcasecmp(get_ext(ep->d_name), "nro") == 0) {
+            entry = lv_ll_ins_tail(ll);
+            strcpy(entry->path, tmp_path);
+        }
+    }
+
+    closedir(app_dp);
+    return LV_RES_OK;
 }

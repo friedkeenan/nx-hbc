@@ -6,6 +6,7 @@
 #include "assets.h"
 #include "decoder.h"
 #include "gui.h"
+#include "apps.h"
 
 int main(int argc, char **argv) {
     appletLockExit();
@@ -19,6 +20,13 @@ int main(int argc, char **argv) {
     if (R_FAILED(rc)) return rc;
 
     decoderInitialize();
+
+    lv_ll_t apps_ll;
+    app_entry_ll_init(&apps_ll);
+    app_entry_t *entry;
+    LV_LL_READ(apps_ll, entry) {
+        logPrintf("%s\n", entry->path);
+    }
 
     setup_screen();
     setup_buttons();

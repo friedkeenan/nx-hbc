@@ -1,5 +1,9 @@
+#pragma once
+
 #include <lvgl/lvgl.h>
 #include <limits.h>
+
+#define APP_DIR "sdmc:/switch"
 
 #define APP_NAME_LEN 0x200
 #define APP_AUTHOR_LEN 0x200
@@ -21,3 +25,5 @@ typedef struct {
 
 lv_res_t app_entry_init(app_entry_t *entry);
 void app_entry_free(app_entry_t *entry);
+
+lv_res_t app_entry_ll_init(lv_ll_t *ll);
