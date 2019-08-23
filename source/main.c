@@ -27,6 +27,7 @@ int main(int argc, char **argv) {
     LV_LL_READ(apps_ll, entry) {
         logPrintf("%s\n", entry->path);
     }
+    lv_ll_clear(&apps_ll);
 
     setup_screen();
     setup_buttons();
