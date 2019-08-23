@@ -12,5 +12,5 @@ bool is_dir(char *path) {
 char *get_ext(char *str) {
     char *p;
     for (p = str + strlen(str); p > str && *p != '.' && *p != '/'; p--);
-    return ++p;
+    return p + 1;
 }
