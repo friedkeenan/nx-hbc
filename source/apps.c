@@ -9,7 +9,7 @@
 #include "log.h"
 #include "util.h"
 
-lv_res_t app_entry_init(app_entry_t *entry) {
+lv_res_t app_entry_init_icon(app_entry_t *entry) {
     FILE *fp = fopen(entry->path, "rb");
     if (fp == NULL) {
         logPrintf("Bad file\n");
@@ -32,8 +32,6 @@ lv_res_t app_entry_init(app_entry_t *entry) {
         fclose(fp);
         return LV_RES_INV;
     }
-
-    logPrintf("asset_header(icon(%#lx, %#lx), nacp(%#lx, %#lx))\n", asset_header.icon.offset, asset_header.icon.size, asset_header.nacp.offset, asset_header.nacp.size);
 
     entry->icon = (lv_img_dsc_t) {
         .header.always_zero = 0,
@@ -60,6 +58,38 @@ lv_res_t app_entry_init(app_entry_t *entry) {
     entry->icon_small.header.w = APP_ICON_SMALL_W;
     entry->icon_small.header.h = APP_ICON_SMALL_H;
 
+    fclose(fp);
+    return LV_RES_OK;
+}
+
+void app_entry_free_icon(app_entry_t *entry) {
+    lv_mem_free(entry->icon.data);
+}
+
+lv_res_t app_entry_init_info(app_entry_t *entry) {
+    FILE *fp = fopen(entry->path, "rb");
+    if (fp == NULL) {
+        logPrintf("Bad file\n");
+        return LV_RES_INV;
+    }
+
+    NroHeader header;
+    NroAssetHeader asset_header;
+
+    fseek(fp, sizeof(NroStart), SEEK_SET);
+    if (fread(&header, sizeof(header), 1, fp) != 1) {
+        logPrintf("Bad header read\n");
+        fclose(fp);
+        return LV_RES_INV;
+    }
+
+    fseek(fp, header.size, SEEK_SET);
+    if (fread(&asset_header, sizeof(asset_header), 1, fp) != 1) {
+        logPrintf("Bad asset header read\n");
+        fclose(fp);
+        return LV_RES_INV;
+    }
+
     NacpStruct nacp;
 
     fseek(fp, header.size + asset_header.nacp.offset, SEEK_SET);
@@ -77,8 +107,23 @@ lv_res_t app_entry_init(app_entry_t *entry) {
     return LV_RES_OK;
 }
 
-void app_entry_free(app_entry_t *entry) {
-    lv_mem_free(entry->icon.data);
+lv_res_t app_entry_ll_ins_alph(lv_ll_t *ll, char *path) {
+    app_entry_t *entry = lv_ll_ins_tail(ll);
+    strcpy(entry->path, path);
+
+    lv_res_t res = app_entry_init_info(entry);
+    if (res != LV_RES_OK) {
+        lv_ll_rem(ll, entry);
+        return res;
+    }
+
+    app_entry_t *tmp_entry;
+    LV_LL_READ_BACK(*ll, tmp_entry) {
+        if (strcasecmp(entry->name, tmp_entry->name) < 0)
+            lv_ll_move_before(ll, entry, tmp_entry);
+    }
+
+    return LV_RES_OK;
 }
 
 lv_res_t app_entry_ll_init(lv_ll_t *ll) {
@@ -94,8 +139,6 @@ lv_res_t app_entry_ll_init(lv_ll_t *ll) {
         tmp_path[0] = '\0';
         snprintf(tmp_path, sizeof(tmp_path), "%s/%s", APP_DIR, ep->d_name);
 
-        app_entry_t *entry;
-
         if (is_dir(tmp_path)) {
             DIR *dp = opendir(tmp_path);
             if (dp == NULL)
@@ -108,16 +151,16 @@ lv_res_t app_entry_ll_init(lv_ll_t *ll) {
                 strcat(path, ep->d_name);
 
                 if (strcasecmp(get_ext(ep->d_name), "nro") == 0) {
-                    entry = lv_ll_ins_tail(ll);
-                    strcpy(entry->path, path);
+                    if (app_entry_ll_ins_alph(ll, path) != LV_RES_OK)
+                        continue;
+
                     break;
                 }
             }
 
             closedir(dp);
         } else if (strcasecmp(get_ext(ep->d_name), "nro") == 0) {
-            entry = lv_ll_ins_tail(ll);
-            strcpy(entry->path, tmp_path);
+            app_entry_ll_ins_alph(ll, tmp_path);
         }
     }
 

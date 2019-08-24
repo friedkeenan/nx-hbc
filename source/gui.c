@@ -217,8 +217,10 @@ void setup_misc() {
     lv_obj_align(logo, NULL, LV_ALIGN_IN_BOTTOM_LEFT, 10, -32);
 
     strcpy(g_app.path, "sdmc:/switch/nx-hbc.nro");
-    lv_res_t res = app_entry_init(&g_app);
-    logPrintf("app_entry_init: %d\n", res);
+    lv_res_t res = app_entry_init_info(&g_app);
+    logPrintf("app_entry_init_info: %d\n", res);
+    res = app_entry_init_icon(&g_app);
+    logPrintf("app_entry_init_icon: %d\n", res);
 
     logPrintf("g_list_buttons[0](%d, %d)\n", lv_obj_get_width(g_list_buttons[0]), lv_obj_get_height(g_list_buttons[0]));
 
