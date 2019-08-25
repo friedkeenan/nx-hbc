@@ -23,6 +23,7 @@
 
 typedef enum {
     AssetId_background,
+    AssetId_cursor_pic,
     AssetId_apps_list,
     AssetId_apps_list_hover,
     AssetId_apps_next,
