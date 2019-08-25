@@ -23,7 +23,8 @@ static float XBoundry = 0.12f;
 
 lv_obj_t * pointer_canvas;
 lv_img_dsc_t pointer_img;
-lv_color_t bgclear;
+lv_color_t pointer_buff[LV_CANVAS_BUF_SIZE_TRUE_COLOR_ALPHA(96, 96)];
+lv_obj_t * cursor_fake_canvas;
 
 static void flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *color_p) {
     u32 stride;
@@ -95,8 +96,9 @@ static bool gyro_cb(lv_indev_drv_t *drv, lv_indev_data_t *data){
     data->point.x = ((float) 1280 * finalvector.x); 
     data->point.y = ((float) 720 * finalvector.y); 
     //clear canvas and draw rotated pointer according to finalcetor.z
-    lv_canvas_fill_bg(pointer_canvas, bgclear);
+    memset(pointer_buff, 0, sizeof(pointer_buff));
     lv_canvas_rotate(pointer_canvas, &pointer_img, 360*finalvector.z, 0, 0, 96 / 2, 96 / 2);
+    lv_obj_align(pointer_canvas, cursor_fake_canvas, LV_ALIGN_IN_TOP_LEFT, -48, -48);
     if (pressed & KEY_A)
     {
         data->state = LV_INDEV_STATE_PR;
@@ -165,9 +167,9 @@ void driversInitialize() {
     pointer_drv.type = LV_INDEV_TYPE_POINTER;
     pointer_drv.read_cb = gyro_cb;
     lv_indev_t *gyro_indev = lv_indev_drv_register(&pointer_drv);
-    lv_color_t cbuff[LV_CANVAS_BUF_SIZE_TRUE_COLOR_ALPHA(96, 96)];//canvas init
     pointer_canvas = lv_canvas_create(lv_scr_act(), NULL);
-    lv_canvas_set_buffer(pointer_canvas, cbuff, 96,96, LV_IMG_CF_TRUE_COLOR_ALPHA);
+    lv_canvas_set_buffer(pointer_canvas, pointer_buff, 96,96, LV_IMG_CF_TRUE_COLOR_ALPHA);
+    cursor_fake_canvas = lv_canvas_create(lv_scr_act(), NULL);
     u8 *data;
     size_t size;
     assetsGetData(AssetId_cursor_pic, &data, &size); //get asset stuff
@@ -179,8 +181,9 @@ void driversInitialize() {
         .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
         .data = data,
     };
-    bgclear = cbuff[1]; //was hoping to get a clear color off a blank buffer here
-    lv_indev_set_cursor(gyro_indev, pointer_canvas); //set cursor
+    lv_indev_set_cursor(gyro_indev, cursor_fake_canvas); //set cursor
+    lv_obj_align(pointer_canvas, cursor_fake_canvas, LV_ALIGN_IN_TOP_LEFT, -48, -48);
+    lv_obj_set_parent(pointer_canvas, lv_layer_sys());
     logPrintf("gyro_indev(%p)\n", gyro_indev);
 
     lv_indev_drv_t touch_drv;
