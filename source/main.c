@@ -23,9 +23,11 @@ int main(int argc, char **argv) {
 
     lv_ll_t apps_ll;
     app_entry_ll_init(&apps_ll);
+    logPrintf("apps_ll(%d)\n", lv_ll_get_len(&apps_ll));
+
     app_entry_t *entry;
     LV_LL_READ(apps_ll, entry) {
-        logPrintf("%s\n", entry->path);
+        logPrintf("%s: %s\n", entry->name, entry->path);
     }
     lv_ll_clear(&apps_ll);
 
