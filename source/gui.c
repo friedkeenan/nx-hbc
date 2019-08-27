@@ -164,10 +164,9 @@ static void draw_entry_on_obj(lv_obj_t *obj, app_entry_t *entry) {
     lv_label_set_style(name, LV_LABEL_STYLE_MAIN, &g_name_style);
 
     char name_txt[APP_NAME_LEN + 2] = {0};
-    if (entry->starred) {
-        logPrintf("Starred: %s\n", entry->name);
+    if (entry->starred)
         strcpy(name_txt, LV_SYMBOL_OK " ");
-    }
+
     strcat(name_txt, entry->name);
     lv_label_set_text(name, name_txt);
 

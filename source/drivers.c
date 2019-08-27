@@ -17,9 +17,7 @@ static void flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *colo
 
     for (int y = area->y1; y <= area->y2; y++) {
         for (int x = area->x1; x <= area->x2; x++) {
-            u32 pos = y * stride / sizeof(lv_color_t) + x;
-            //logPrintf("Flush: pos(%#x)\n", pos);
-            fb[pos] = *color_p;
+            fb[y * stride / sizeof(lv_color_t) + x] = *color_p;
             color_p++;
         }
     }
