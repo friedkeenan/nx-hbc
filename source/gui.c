@@ -179,7 +179,7 @@ static void draw_entry_on_obj(lv_obj_t *obj, app_entry_t *entry) {
 }
 
 static void draw_buttons() {
-    if (num_buttons > 0) {
+    if (num_buttons() > 0) {
         u8 *data;
         size_t size;
 
