@@ -12,6 +12,7 @@ static lv_img_dsc_t g_background;
 
 static lv_ll_t g_apps_ll;
 static int g_apps_ll_len;
+static lv_img_dsc_t g_star;
 
 static lv_img_dsc_t g_list_dscs[2] = {0}; // {normal, hover}
 static lv_obj_t *g_list_buttons[MAX_LIST_ROWS] = {0};
@@ -160,16 +161,15 @@ static void draw_entry_on_obj(lv_obj_t *obj, app_entry_t *entry) {
     lv_img_set_src(icon_small, &entry->icon_small);
     lv_obj_align(icon_small, NULL, LV_ALIGN_IN_LEFT_MID, offset, 0);
 
+    if (entry->starred) {
+        lv_obj_t *star = lv_img_create(obj, NULL);
+        lv_img_set_src(star, &g_star);
+        lv_obj_align(star, NULL, LV_ALIGN_IN_TOP_LEFT, 0, 0);
+    }
+
     lv_obj_t *name = lv_label_create(obj, NULL);
     lv_label_set_style(name, LV_LABEL_STYLE_MAIN, &g_name_style);
-
-    char name_txt[APP_NAME_LEN + 2] = {0};
-    if (entry->starred)
-        strcpy(name_txt, LV_SYMBOL_OK " ");
-
-    strcat(name_txt, entry->name);
-    lv_label_set_text(name, name_txt);
-
+    lv_label_set_static_text(name, entry->name);
     lv_label_set_align(name, LV_LABEL_ALIGN_LEFT);
     lv_label_set_long_mode(name, LV_LABEL_LONG_CROP);
     lv_obj_align(name, icon_small, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
@@ -187,22 +187,6 @@ static void draw_entry_on_obj(lv_obj_t *obj, app_entry_t *entry) {
 
 static void draw_buttons() {
     if (num_buttons() > 0) {
-        u8 *data;
-        size_t size;
-
-        // List buttons
-        for (int i=0; i<2; i++) {
-            assetsGetData(AssetId_apps_list + i, &data, &size);
-            g_list_dscs[i] = (lv_img_dsc_t) {
-                .header.always_zero = 0,
-                .header.w = LIST_BTN_W,
-                .header.h = LIST_BTN_H,
-                .data_size = size,
-                .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
-                .data = data,
-            };
-        }
-
         lv_group_set_style_mod_cb(keypad_group(), focus_cb);
 
         g_list_buttons[0] = lv_imgbtn_create(lv_scr_act(), NULL);
@@ -231,19 +215,6 @@ static void draw_buttons() {
             lv_obj_align(g_list_buttons[i], g_list_buttons[i - 1], LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
         }
         g_curr_focused = g_list_covers[0];
-
-        // Page buttons
-        for (int i=0; i<4; i++) {
-            assetsGetData(AssetId_apps_next + i, &data, &size);
-            g_arrow_dscs[i] = (lv_img_dsc_t) {
-                .header.always_zero = 0,
-                .header.w = ARROW_BTN_W,
-                .header.h = ARROW_BTN_H,
-                .data_size = size,
-                .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
-                .data = data,
-            };
-        }
 
         g_arrow_buttons[0] = lv_imgbtn_create(lv_scr_act(), NULL);
         lv_group_add_obj(keypad_group(), g_arrow_buttons[0]);
@@ -288,6 +259,45 @@ void setup_menu() {
 
     lv_style_copy(&g_auth_ver_style, &lv_style_plain);
     g_auth_ver_style.text.color = LV_COLOR_WHITE;
+
+    u8 *data;
+    size_t size;
+
+    // List buttons
+    for (int i=0; i<2; i++) {
+        assetsGetData(AssetId_apps_list + i, &data, &size);
+        g_list_dscs[i] = (lv_img_dsc_t) {
+            .header.always_zero = 0,
+            .header.w = LIST_BTN_W,
+            .header.h = LIST_BTN_H,
+            .data_size = size,
+            .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
+            .data = data,
+        };
+    }
+
+    // Arrow buttons
+    for (int i=0; i<4; i++) {
+        assetsGetData(AssetId_apps_next + i, &data, &size);
+        g_arrow_dscs[i] = (lv_img_dsc_t) {
+            .header.always_zero = 0,
+            .header.w = ARROW_BTN_W,
+            .header.h = ARROW_BTN_H,
+            .data_size = size,
+            .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
+            .data = data,
+        };
+    }
+
+    assetsGetData(AssetId_star, &data, &size);
+    g_star = (lv_img_dsc_t) {
+        .header.always_zero = 0,
+        .header.w = STAR_W,
+        .header.h = STAR_H,
+        .data_size = size,
+        .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
+        .data = data,
+    };
 
     gen_apps_list();
     draw_buttons();

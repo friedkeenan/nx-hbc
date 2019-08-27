@@ -2,6 +2,9 @@
 
 #include <lvgl/lvgl.h>
 
+#define STAR_W 25
+#define STAR_H 24
+
 #define MAX_LIST_ROWS 5
 
 #define LIST_BTN_W 648
