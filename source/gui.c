@@ -205,9 +205,6 @@ static void draw_buttons() {
         lv_imgbtn_set_src(g_list_buttons[0], LV_BTN_STATE_PR, &g_list_dscs[0]);
         lv_obj_align(g_list_buttons[0], NULL, LV_ALIGN_IN_TOP_MID, 0, (LV_VER_RES_MAX - LIST_BTN_H * MAX_LIST_ROWS) / 2);
 
-        lv_style_copy(&g_cover_style, &lv_style_plain);
-        g_cover_style.body.opa = LV_OPA_TRANSP;
-
         g_list_covers[0] = lv_cont_create(g_list_buttons[0], NULL);
         lv_cont_set_style(g_list_covers[0], LV_CONT_STYLE_MAIN, &g_cover_style);
         lv_obj_set_size(g_list_covers[0], lv_obj_get_width(g_list_buttons[0]), lv_obj_get_height(g_list_buttons[0]));
@@ -218,7 +215,7 @@ static void draw_buttons() {
 
         for (int i = 1; i < num_buttons(); i++) {
             g_list_buttons[i] = lv_imgbtn_create(lv_scr_act(), g_list_buttons[i - 1]);
-            g_list_covers[i] = lv_cont_create(g_list_buttons[i], g_list_covers[i - 1]);
+            g_list_covers[i] = lv_obj_create(g_list_buttons[i], g_list_covers[i - 1]);
 
             entry = lv_ll_get_next(&g_apps_ll, entry);
             app_entry_init_icon(entry);
@@ -275,6 +272,9 @@ void setup_screen() {
 }
 
 void setup_menu() {
+    lv_style_copy(&g_cover_style, &lv_style_plain);
+    g_cover_style.body.opa = LV_OPA_TRANSP;
+
     lv_style_copy(&g_name_style, &lv_style_plain);
     g_name_style.text.font = &lv_font_roboto_28;
     g_name_style.text.color = LV_COLOR_WHITE;
