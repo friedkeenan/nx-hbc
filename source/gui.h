@@ -13,5 +13,5 @@
 #define LOGO_H 34
 
 void setup_screen();
-void setup_buttons();
+void setup_menu();
 void setup_misc();
