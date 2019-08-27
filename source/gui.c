@@ -162,7 +162,15 @@ static void draw_entry_on_obj(lv_obj_t *obj, app_entry_t *entry) {
 
     lv_obj_t *name = lv_label_create(obj, NULL);
     lv_label_set_style(name, LV_LABEL_STYLE_MAIN, &g_name_style);
-    lv_label_set_static_text(name, entry->name);
+
+    char name_txt[APP_NAME_LEN + 2] = {0};
+    if (entry->starred) {
+        logPrintf("Starred: %s\n", entry->name);
+        strcpy(name_txt, LV_SYMBOL_OK " ");
+    }
+    strcat(name_txt, entry->name);
+    lv_label_set_text(name, name_txt);
+
     lv_label_set_align(name, LV_LABEL_ALIGN_LEFT);
     lv_label_set_long_mode(name, LV_LABEL_LONG_CROP);
     lv_obj_align(name, icon_small, LV_ALIGN_OUT_RIGHT_MID, 10, 0);

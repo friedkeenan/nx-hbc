@@ -107,9 +107,16 @@ lv_res_t app_entry_init_info(app_entry_t *entry) {
     return LV_RES_OK;
 }
 
-lv_res_t app_entry_ll_ins_alph(lv_ll_t *ll, char *path) {
+lv_res_t app_entry_ll_ins(lv_ll_t *ll, char *path) {
+    char star_path[PATH_MAX];
+    strcpy(star_path, path);
+    strcpy(get_name(star_path), ".");
+    strcpy(get_name(star_path) + 1, get_name(path));
+    strcat(star_path, ".star");
+
     app_entry_t *entry = lv_ll_ins_tail(ll);
     strcpy(entry->path, path);
+    entry->starred = is_file(star_path);
 
     lv_res_t res = app_entry_init_info(entry);
     if (res != LV_RES_OK) {
@@ -118,9 +125,14 @@ lv_res_t app_entry_ll_ins_alph(lv_ll_t *ll, char *path) {
     }
 
     app_entry_t *tmp_entry;
-    LV_LL_READ_BACK(*ll, tmp_entry) {
-        if (strcasecmp(entry->name, tmp_entry->name) < 0)
+    LV_LL_READ(*ll, tmp_entry) {
+        if (!entry->starred && tmp_entry->starred)
+            continue;
+
+        if ((entry->starred && !tmp_entry->starred) || strcasecmp(entry->name, tmp_entry->name) < 0) {
             lv_ll_move_before(ll, entry, tmp_entry);
+            break;
+        }
     }
 
     return LV_RES_OK;
@@ -151,7 +163,7 @@ lv_res_t app_entry_ll_init(lv_ll_t *ll) {
                 strcat(path, ep->d_name);
 
                 if (strcasecmp(get_ext(ep->d_name), "nro") == 0) {
-                    if (app_entry_ll_ins_alph(ll, path) != LV_RES_OK)
+                    if (app_entry_ll_ins(ll, path) != LV_RES_OK)
                         continue;
 
                     break;
@@ -160,7 +172,7 @@ lv_res_t app_entry_ll_init(lv_ll_t *ll) {
 
             closedir(dp);
         } else if (strcasecmp(get_ext(ep->d_name), "nro") == 0) {
-            app_entry_ll_ins_alph(ll, tmp_path);
+            app_entry_ll_ins(ll, tmp_path);
         }
     }
 
