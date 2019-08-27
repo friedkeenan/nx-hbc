@@ -45,7 +45,7 @@ static bool touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
 }
 
 static bool keypad_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
-    u64 pressed = hidKeysDown(CONTROLLER_P1_AUTO) | hidKeysHeld(CONTROLLER_P1_AUTO);
+    u64 pressed = hidKeysHeld(CONTROLLER_P1_AUTO);
 
     data->state = LV_INDEV_STATE_PR;
 
