@@ -12,27 +12,26 @@ static lv_color_t g_buffer[LV_HOR_RES_MAX * LV_VER_RES_MAX];
 static touchPosition g_touch_pos;
 
 static lv_group_t *g_keypad_group;
-//sixaxis handle
+// sixaxis handles
 static u32 handles[4];
-//we actually only need to keep track of a specific set of data so we dont need all sixaxis values
-static HidVector Gyro_Center;
-//boundries for translating gyro directly to screen space
-//smaller values for smaller tvs/smaller motions
-static float YBoundry = 0.12f;
-static float XBoundry = 0.12f;
-
-lv_obj_t * pointer_canvas;
-lv_img_dsc_t pointer_img;
-lv_color_t pointer_buff[LV_CANVAS_BUF_SIZE_TRUE_COLOR_ALPHA(96, 96)];
-lv_obj_t * cursor_fake_canvas;
-
+// we actually only need to keep track of a specific set of data so we dont need all sixaxis values
+static HidVector g_gyro_center;
+// boundries for translating gyro directly to screen space
+// smaller values for smaller tvs/smaller motions
+static lv_obj_t * g_pointer_canvas;
+static lv_img_dsc_t g_pointer_img;
+static lv_color_t g_pointer_buff[LV_CANVAS_BUF_SIZE_TRUE_COLOR_ALPHA(96, 96)];
+static lv_obj_t * g_pointer_fake_canvas;
+static float g_pointer_screen_magic = 0.7071f; // this is a repeating number that describes the top right of a square inside a unit circle whose sides are parallel to the x-y axis'
 static void flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *color_p) {
     u32 stride;
     lv_color_t *fb = (lv_color_t *) framebufferBegin(&g_framebuffer, &stride);
 
     for (int y = area->y1; y <= area->y2; y++) {
         for (int x = area->x1; x <= area->x2; x++) {
-            fb[y * stride / sizeof(lv_color_t) + x] = *color_p;
+            u32 pos = y * stride / sizeof(lv_color_t) + x;
+            //logPrintf("Flush: pos(%#x)\n", pos);
+            fb[pos] = *color_p;
             color_p++;
         }
     }
@@ -42,61 +41,68 @@ static void flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *colo
     lv_disp_flush_ready(drv);
 }
 
-void CenterGyro(SixAxisSensorValues sixaxis){
-    //these track center, unknown is actually a float value that can keep track of full rotations, 1 unit = 1 full rotation in that direction
-    Gyro_Center.x = sixaxis.unk.z; //rotation along y (which trannslates to left right)
-    Gyro_Center.y = sixaxis.unk.x; //rotation along x (^^^^)
-    Gyro_Center.z = sixaxis.unk.y; //rotation on forward axis
-    logPrintf("gyro centered at x: % .4f, y: % .4f \n", Gyro_Center.x, Gyro_Center.y);
+void centerGyro(SixAxisSensorValues sixaxis){
+    // these track center, unknown is actually a float value that can keep track of full rotations, 1 unit = 1 full rotation in that direction
+    g_gyro_center.x = sixaxis.unk.x; //rotation along y (which trannslates to left right)
+    g_gyro_center.y = sixaxis.unk.z; //rotation along x (^^^^^^^^^^^^^^^^^^^^ up down) //this is switched with Z in handheld mode
+    g_gyro_center.z = sixaxis.unk.y; //rotation on forward axis
+    logPrintf("gyro centered at x: % .4f, y: % .4f \n", g_gyro_center.x, g_gyro_center.y);
 }
 
 static bool gyro_cb(lv_indev_drv_t *drv, lv_indev_data_t *data){
-    //scan for input changes 
+    // scan for input changes 
     SixAxisSensorValues sixaxis;
     hidSixAxisSensorValuesRead(&sixaxis, CONTROLLER_P1_AUTO, 1);
-    //center gyro
+    // center gyro
     u64 pressed = hidKeysDown(CONTROLLER_P1_AUTO) | hidKeysHeld(CONTROLLER_P1_AUTO);
     if (pressed & KEY_X)
-        CenterGyro(sixaxis);
-    //we need format data
+        centerGyro(sixaxis);
+    // center input according to g_gyro_center
     HidVector finalvector;
+    finalvector.x = sixaxis.unk.x - g_gyro_center.x;
+    finalvector.y = sixaxis.unk.z - g_gyro_center.y; 
+    finalvector.z = sixaxis.unk.y - g_gyro_center.z;
+    
+    
+    float XAngle = 360 * finalvector.x;
+    float YAngle = 360 * finalvector.y;
+    float ZAngle = 360 * finalvector.z;
+    float XRadian = XAngle * M_PI / 180;
+    float YRadian = YAngle * M_PI / 180;
+    float ZRadian = ZAngle * M_PI / 180;
+    // rotate 3d point at (0,0,1) along x and y and then put it into (x,y) coordinates this return a point inside a circile of radius 1
+    finalvector.x = sin(ZRadian) * sin(XRadian) - cos(ZRadian) * sin(YRadian) * cos(XRadian); 
+    finalvector.y = cos(ZRadian) * sin(XRadian) + sin(ZRadian) * sin(YRadian) * cos(XRadian);
+    
+    if (pressed & KEY_Y)
+        logPrintf("gyro cursor input at x: % .4f, y: % .4f \n yangle: % .4f xangle: % .4f \n", finalvector.x, finalvector.y, YAngle, XAngle);
     // x and y need to be clamped to our boundries should the absolute value be above it
-    finalvector.x = sixaxis.unk.z - Gyro_Center.x;
-    finalvector.y = sixaxis.unk.x - Gyro_Center.y; 
-    //this value can be left alone since its for pointer rotation
-    finalvector.z = sixaxis.unk.y - Gyro_Center.z;
-    
-    //todo normalize finalvector so its 1 to 0 to fix overturn (full rotation)
-    
-    if(fabs(finalvector.x) > XBoundry)
+    if(fabs(finalvector.x) > g_pointer_screen_magic)
     {
-        //the value can be negative or positive
+        // the value can be negative or positive
         if(finalvector.x > 0.0f){
-            finalvector.x = XBoundry;
+            finalvector.x = g_pointer_screen_magic;
         }
         else{
-            finalvector.x = -XBoundry;
+            finalvector.x = -g_pointer_screen_magic;
         }
     }
-    if(fabs(finalvector.y) > YBoundry)
+    if(fabs(finalvector.y) > g_pointer_screen_magic)
     {
         if(finalvector.y > 0.0f){
-            finalvector.y = YBoundry;
+            finalvector.y = g_pointer_screen_magic;
         }
         else{
-            finalvector.y = -YBoundry;
+            finalvector.y = -g_pointer_screen_magic;
         }
     }
-    //now we need to inevert and convert them back to a 0 1 range
-    finalvector.x = (-finalvector.x + XBoundry) / 2.0f / XBoundry;
-    finalvector.y = (-finalvector.y + YBoundry) / 2.0f / YBoundry; 
-    //convert input to screen space
+    // now we need to inevert y and convert them back to a 0 1 range
+    finalvector.x = (finalvector.x + g_pointer_screen_magic) / 2.0f / g_pointer_screen_magic;
+    finalvector.y = (-finalvector.y + g_pointer_screen_magic) / 2.0f  / g_pointer_screen_magic; 
+    
+    
     data->point.x = ((float) 1280 * finalvector.x); 
     data->point.y = ((float) 720 * finalvector.y); 
-    //clear canvas and draw rotated pointer according to finalcetor.z
-    memset(pointer_buff, 0, sizeof(pointer_buff));
-    lv_canvas_rotate(pointer_canvas, &pointer_img, 360*finalvector.z, 0, 0, 96 / 2, 96 / 2);
-    lv_obj_align(pointer_canvas, cursor_fake_canvas, LV_ALIGN_IN_TOP_LEFT, -48, -48);
     if (pressed & KEY_A)
     {
         data->state = LV_INDEV_STATE_PR;
@@ -105,6 +111,11 @@ static bool gyro_cb(lv_indev_drv_t *drv, lv_indev_data_t *data){
     {
         data->state = LV_INDEV_STATE_REL;
     }
+    // clear canvas and draw rotated pointer according to finalvector.z
+    memset(g_pointer_buff, 0, sizeof(g_pointer_buff));
+    lv_canvas_rotate(g_pointer_canvas, &g_pointer_img,  ZAngle, 0, 0, 96 / 2, 96 / 2);
+    lv_obj_align(g_pointer_canvas, g_pointer_fake_canvas, LV_ALIGN_IN_TOP_LEFT, -48, -48);
+    
     return false;
     
 }
@@ -124,7 +135,7 @@ static bool touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
 }
 
 static bool keypad_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
-    u64 pressed = hidKeysHeld(CONTROLLER_P1_AUTO);
+    u64 pressed = hidKeysDown(CONTROLLER_P1_AUTO) | hidKeysHeld(CONTROLLER_P1_AUTO);
 
     data->state = LV_INDEV_STATE_PR;
 
@@ -165,13 +176,13 @@ void driversInitialize() {
     pointer_drv.type = LV_INDEV_TYPE_POINTER;
     pointer_drv.read_cb = gyro_cb;
     lv_indev_t *gyro_indev = lv_indev_drv_register(&pointer_drv);
-    pointer_canvas = lv_canvas_create(lv_scr_act(), NULL);
-    lv_canvas_set_buffer(pointer_canvas, pointer_buff, 96,96, LV_IMG_CF_TRUE_COLOR_ALPHA);
-    cursor_fake_canvas = lv_canvas_create(lv_scr_act(), NULL);
+    g_pointer_canvas = lv_canvas_create(lv_scr_act(), NULL);
+    lv_canvas_set_buffer(g_pointer_canvas, g_pointer_buff, 96,96, LV_IMG_CF_TRUE_COLOR_ALPHA);
+    g_pointer_fake_canvas = lv_canvas_create(lv_scr_act(), NULL);
     u8 *data;
     size_t size;
-    assetsGetData(AssetId_cursor_pic, &data, &size); //get asset stuff
-    pointer_img = (lv_img_dsc_t) {
+    assetsGetData(AssetId_cursor_pic, &data, &size); // get asset stuff
+    g_pointer_img = (lv_img_dsc_t) {
         .header.always_zero = 0,
         .header.w = 96,
         .header.h = 96,
@@ -179,9 +190,9 @@ void driversInitialize() {
         .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
         .data = data,
     };
-    lv_indev_set_cursor(gyro_indev, cursor_fake_canvas); //set cursor
-    lv_obj_align(pointer_canvas, cursor_fake_canvas, LV_ALIGN_IN_TOP_LEFT, -48, -48);
-    lv_obj_set_parent(pointer_canvas, lv_layer_sys());
+    lv_indev_set_cursor(gyro_indev, g_pointer_fake_canvas); // set cursor
+    lv_obj_align(g_pointer_canvas, g_pointer_fake_canvas, LV_ALIGN_IN_TOP_LEFT, -48, -48);
+    lv_obj_set_parent(g_pointer_canvas, lv_layer_sys());
     logPrintf("gyro_indev(%p)\n", gyro_indev);
 
     lv_indev_drv_t touch_drv;
@@ -212,9 +223,9 @@ void driversInitialize() {
     hidStartSixAxisSensor(handles[3]);
     //ideally scan for input here and set the zero
     
-    Gyro_Center.x = 0; //left right motions
-    Gyro_Center.y = 0; //up down motions
-    Gyro_Center.z = 1; //rotation along forward axis (pointer rotation)
+    g_gyro_center.x = 0; 
+    g_gyro_center.y = 0;
+    g_gyro_center.z = 1; 
 }
 
 void driversExit() {
