@@ -32,9 +32,7 @@ static void flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *colo
 
     for (int y = area->y1; y <= area->y2; y++) {
         for (int x = area->x1; x <= area->x2; x++) {
-            u32 pos = y * stride / sizeof(lv_color_t) + x;
-            //logPrintf("Flush: pos(%#x)\n", pos);
-            fb[pos] = *color_p;
+            fb[y * stride / sizeof(lv_color_t) + x] = *color_p;
             color_p++;
         }
     }
@@ -126,7 +124,7 @@ static bool touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
 }
 
 static bool keypad_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
-    u64 pressed = hidKeysDown(CONTROLLER_P1_AUTO) | hidKeysHeld(CONTROLLER_P1_AUTO);
+    u64 pressed = hidKeysHeld(CONTROLLER_P1_AUTO);
 
     data->state = LV_INDEV_STATE_PR;
 

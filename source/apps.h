@@ -16,9 +16,12 @@
 
 typedef struct {
     char path[PATH_MAX];
+    bool starred;
+
     char name[APP_NAME_LEN];
     char author[APP_AUTHOR_LEN];
     char version[APP_VER_LEN];
+
     lv_img_dsc_t icon;
     lv_img_dsc_t icon_small;
 } app_entry_t;
@@ -28,5 +31,5 @@ void app_entry_free_icon(app_entry_t *entry);
 
 lv_res_t app_entry_init_info(app_entry_t *entry);
 
-lv_res_t app_entry_ll_ins_alph(lv_ll_t *ll, char *path);
+lv_res_t app_entry_ll_ins(lv_ll_t *ll, char *path);
 lv_res_t app_entry_ll_init(lv_ll_t *ll);
