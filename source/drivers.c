@@ -16,8 +16,6 @@ static lv_group_t *g_keypad_group;
 static u32 handles[4];
 // we actually only need to keep track of a specific set of data so we dont need all sixaxis values
 static HidVector g_gyro_center;
-// boundries for translating gyro directly to screen space
-// smaller values for smaller tvs/smaller motions
 static lv_obj_t * g_pointer_canvas;
 static lv_img_dsc_t g_pointer_img;
 static lv_color_t g_pointer_buff[LV_CANVAS_BUF_SIZE_TRUE_COLOR_ALPHA(96, 96)];
@@ -29,9 +27,7 @@ static void flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *colo
 
     for (int y = area->y1; y <= area->y2; y++) {
         for (int x = area->x1; x <= area->x2; x++) {
-            u32 pos = y * stride / sizeof(lv_color_t) + x;
-            //logPrintf("Flush: pos(%#x)\n", pos);
-            fb[pos] = *color_p;
+            fb[y * stride / sizeof(lv_color_t) + x] = *color_p;
             color_p++;
         }
     }
@@ -44,7 +40,7 @@ static void flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *colo
 void centerGyro(SixAxisSensorValues sixaxis){
     // these track center, unknown is actually a float value that can keep track of full rotations, 1 unit = 1 full rotation in that direction
     g_gyro_center.x = sixaxis.unk.x; //rotation along y (which trannslates to left right)
-    g_gyro_center.y = sixaxis.unk.z; //rotation along x (^^^^^^^^^^^^^^^^^^^^ up down) //this is switched with Z in handheld mode
+    g_gyro_center.y = sixaxis.unk.z; //rotation along x (^^^^^^^^^^^^^^^^^^^^ up down) [Note: this is switched with Z in handheld mode]
     g_gyro_center.z = sixaxis.unk.y; //rotation on forward axis
     logPrintf("gyro centered at x: % .4f, y: % .4f \n", g_gyro_center.x, g_gyro_center.y);
 }
@@ -60,7 +56,7 @@ static bool gyro_cb(lv_indev_drv_t *drv, lv_indev_data_t *data){
     SixAxisSensorValues sixaxis;
     hidSixAxisSensorValuesRead(&sixaxis, CONTROLLER_P1_AUTO, 1);
     // center gyro
-    u64 pressed = hidKeysDown(CONTROLLER_P1_AUTO) | hidKeysHeld(CONTROLLER_P1_AUTO);
+    u64 pressed = hidKeysHeld(CONTROLLER_P1_AUTO);
     if (pressed & KEY_X)
         centerGyro(sixaxis);
     if (pressed & KEY_A)
@@ -134,7 +130,7 @@ static bool touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
 }
 
 static bool keypad_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
-    u64 pressed = hidKeysDown(CONTROLLER_P1_AUTO) | hidKeysHeld(CONTROLLER_P1_AUTO);
+    u64 pressed = hidKeysHeld(CONTROLLER_P1_AUTO);
 
     data->state = LV_INDEV_STATE_PR;
 
@@ -178,9 +174,13 @@ void driversInitialize() {
     g_pointer_canvas = lv_canvas_create(lv_scr_act(), NULL);
     lv_canvas_set_buffer(g_pointer_canvas, g_pointer_buff, 96,96, LV_IMG_CF_TRUE_COLOR_ALPHA);
     g_pointer_fake_canvas = lv_canvas_create(lv_scr_act(), NULL);
+    lv_indev_set_cursor(gyro_indev, g_pointer_fake_canvas); // set cursor to fake canvas for centering click and rotating cursor
+    lv_obj_set_parent(g_pointer_canvas, lv_layer_sys()); // set the real cursor to the system layer where the cursor should be drawn
+    logPrintf("gyro_indev(%p)\n", gyro_indev);
+    // cursor asset
     u8 *data;
     size_t size;
-    assetsGetData(AssetId_cursor_pic, &data, &size); // get asset stuff
+    assetsGetData(AssetId_cursor, &data, &size); 
     g_pointer_img = (lv_img_dsc_t) {
         .header.always_zero = 0,
         .header.w = 96,
@@ -189,9 +189,6 @@ void driversInitialize() {
         .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
         .data = data,
     };
-    lv_indev_set_cursor(gyro_indev, g_pointer_fake_canvas); // set cursor
-    lv_obj_set_parent(g_pointer_canvas, lv_layer_sys());
-    logPrintf("gyro_indev(%p)\n", gyro_indev);
 
     lv_indev_drv_t touch_drv;
     lv_indev_drv_init(&touch_drv);
@@ -211,7 +208,7 @@ void driversInitialize() {
     lv_indev_set_group(keypad_indev, g_keypad_group);
     
     
-    //get handles for sixaxis
+    // get handles for sixaxis
     hidGetSixAxisSensorHandles(&handles[0], 2, CONTROLLER_PLAYER_1, TYPE_JOYCON_PAIR);
     hidGetSixAxisSensorHandles(&handles[2], 1, CONTROLLER_PLAYER_1, TYPE_PROCONTROLLER);
     hidGetSixAxisSensorHandles(&handles[3], 1, CONTROLLER_HANDHELD, TYPE_HANDHELD);
@@ -219,8 +216,8 @@ void driversInitialize() {
     hidStartSixAxisSensor(handles[1]);
     hidStartSixAxisSensor(handles[2]);
     hidStartSixAxisSensor(handles[3]);
-    //ideally scan for input here and set the zero
     
+    // ideally scan for input here and set the zero
     g_gyro_center.x = 0; 
     g_gyro_center.y = 0;
     g_gyro_center.z = 1; 
