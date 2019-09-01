@@ -50,6 +50,12 @@ void centerGyro(SixAxisSensorValues sixaxis){
 }
 
 static bool gyro_cb(lv_indev_drv_t *drv, lv_indev_data_t *data){
+    if(hidGetHandheldMode()){
+        data->point.x = -1; 
+        data->point.y = -1; 
+        data->state = LV_INDEV_STATE_REL;
+        return false; 
+    }
     // scan for input changes 
     SixAxisSensorValues sixaxis;
     hidSixAxisSensorValuesRead(&sixaxis, CONTROLLER_P1_AUTO, 1);
@@ -57,25 +63,28 @@ static bool gyro_cb(lv_indev_drv_t *drv, lv_indev_data_t *data){
     u64 pressed = hidKeysDown(CONTROLLER_P1_AUTO) | hidKeysHeld(CONTROLLER_P1_AUTO);
     if (pressed & KEY_X)
         centerGyro(sixaxis);
+    if (pressed & KEY_A)
+    {
+        data->state = LV_INDEV_STATE_PR;
+    }
+    else
+    {
+        data->state = LV_INDEV_STATE_REL;
+    }
     // center input according to g_gyro_center
     HidVector finalvector;
     finalvector.x = sixaxis.unk.x - g_gyro_center.x;
     finalvector.y = sixaxis.unk.z - g_gyro_center.y; 
     finalvector.z = sixaxis.unk.y - g_gyro_center.z;
-    
-    
     float XAngle = 360 * finalvector.x;
     float YAngle = 360 * finalvector.y;
     float ZAngle = 360 * finalvector.z;
     float XRadian = XAngle * M_PI / 180;
     float YRadian = YAngle * M_PI / 180;
     float ZRadian = ZAngle * M_PI / 180;
-    // rotate 3d point at (0,0,1) along x and y and then put it into (x,y) coordinates this return a point inside a circile of radius 1
+    // rotate 3d point at (0,0,1) along x y and z and then put it into (x,y) coordinates this return a point inside a circile of radius 1
     finalvector.x = sin(ZRadian) * sin(XRadian) - cos(ZRadian) * sin(YRadian) * cos(XRadian); 
     finalvector.y = cos(ZRadian) * sin(XRadian) + sin(ZRadian) * sin(YRadian) * cos(XRadian);
-    
-    if (pressed & KEY_Y)
-        logPrintf("gyro cursor input at x: % .4f, y: % .4f \n yangle: % .4f xangle: % .4f \n", finalvector.x, finalvector.y, YAngle, XAngle);
     // x and y need to be clamped to our boundries should the absolute value be above it
     if(fabs(finalvector.x) > g_pointer_screen_magic)
     {
@@ -99,18 +108,8 @@ static bool gyro_cb(lv_indev_drv_t *drv, lv_indev_data_t *data){
     // now we need to inevert y and convert them back to a 0 1 range
     finalvector.x = (finalvector.x + g_pointer_screen_magic) / 2.0f / g_pointer_screen_magic;
     finalvector.y = (-finalvector.y + g_pointer_screen_magic) / 2.0f  / g_pointer_screen_magic; 
-    
-    
     data->point.x = ((float) 1280 * finalvector.x); 
     data->point.y = ((float) 720 * finalvector.y); 
-    if (pressed & KEY_A)
-    {
-        data->state = LV_INDEV_STATE_PR;
-    }
-    else
-    {
-        data->state = LV_INDEV_STATE_REL;
-    }
     // clear canvas and draw rotated pointer according to finalvector.z
     memset(g_pointer_buff, 0, sizeof(g_pointer_buff));
     lv_canvas_rotate(g_pointer_canvas, &g_pointer_img,  ZAngle, 0, 0, 96 / 2, 96 / 2);
@@ -191,7 +190,6 @@ void driversInitialize() {
         .data = data,
     };
     lv_indev_set_cursor(gyro_indev, g_pointer_fake_canvas); // set cursor
-    lv_obj_align(g_pointer_canvas, g_pointer_fake_canvas, LV_ALIGN_IN_TOP_LEFT, -48, -48);
     lv_obj_set_parent(g_pointer_canvas, lv_layer_sys());
     logPrintf("gyro_indev(%p)\n", gyro_indev);
 
