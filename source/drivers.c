@@ -22,7 +22,7 @@ static lv_color_t g_pointer_buff[LV_CANVAS_BUF_SIZE_TRUE_COLOR_ALPHA(96, 96)];
 static lv_obj_t * g_pointer_fake_canvas;
 static float g_pointer_screen_magic = 0.7071f; // this is a repeating number that describes the top right of a square inside a unit circle whose sides are parallel to the x-y axis'
 static lv_indev_t *gyro_indev;
-static bool clearPointerCanvas = true;
+static bool g_clear_pointer_canvas = true;
 static void flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *color_p) {
     u32 stride;
     lv_color_t *fb = (lv_color_t *) framebufferBegin(&g_framebuffer, &stride);
@@ -152,16 +152,16 @@ static bool keypad_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
 void handheldChangedTask(lv_task_t * t){
     if(hidGetHandheldMode()){
         gyro_indev->proc.disabled = 1;
-        if(clearPointerCanvas){
-            clearPointerCanvas = false;
+        if(g_clear_pointer_canvas){
+            g_clear_pointer_canvas = false;
             lv_obj_set_opa_scale(g_pointer_canvas, LV_OPA_TRANSP); 
         }
     }
     else
     {
-        if(!clearPointerCanvas)
+        if(!g_clear_pointer_canvas)
         {
-            clearPointerCanvas = true;
+            g_clear_pointer_canvas = true;
             lv_obj_set_opa_scale(g_pointer_canvas, LV_OPA_100); 
         }
         gyro_indev->proc.disabled = 0;
@@ -195,7 +195,7 @@ void driversInitialize() {
     lv_obj_set_opa_scale_enable(g_pointer_canvas, true);
     if(hidGetHandheldMode()){
         gyro_indev->proc.disabled = 1;
-        clearPointerCanvas = false;
+        g_clear_pointer_canvas = false;
         lv_obj_set_opa_scale(g_pointer_canvas, LV_OPA_TRANSP); 
     }
     lv_task_t * handheld_check = lv_task_create(handheldChangedTask, 500, LV_TASK_PRIO_MID, NULL);
