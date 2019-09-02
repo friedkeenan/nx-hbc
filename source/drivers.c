@@ -21,6 +21,8 @@ static lv_img_dsc_t g_pointer_img;
 static lv_color_t g_pointer_buff[LV_CANVAS_BUF_SIZE_TRUE_COLOR_ALPHA(96, 96)];
 static lv_obj_t * g_pointer_fake_canvas;
 static float g_pointer_screen_magic = 0.7071f; // this is a repeating number that describes the top right of a square inside a unit circle whose sides are parallel to the x-y axis'
+static lv_indev_t *gyro_indev;
+static bool clearPointerCanvas = true;
 static void flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *color_p) {
     u32 stride;
     lv_color_t *fb = (lv_color_t *) framebufferBegin(&g_framebuffer, &stride);
@@ -46,12 +48,6 @@ void centerGyro(SixAxisSensorValues sixaxis){
 }
 
 static bool gyro_cb(lv_indev_drv_t *drv, lv_indev_data_t *data){
-    if(hidGetHandheldMode()){
-        data->point.x = -1; 
-        data->point.y = -1; 
-        data->state = LV_INDEV_STATE_REL;
-        return false; 
-    }
     // scan for input changes 
     SixAxisSensorValues sixaxis;
     hidSixAxisSensorValuesRead(&sixaxis, CONTROLLER_P1_AUTO, 1);
@@ -114,6 +110,7 @@ static bool gyro_cb(lv_indev_drv_t *drv, lv_indev_data_t *data){
     return false;
     
 }
+
 static bool touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
 
     if (hidTouchCount()) {
@@ -152,6 +149,25 @@ static bool keypad_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
     return false;
 }
 
+void handheldChangedTask(lv_task_t * t){
+    if(hidGetHandheldMode()){
+        gyro_indev->proc.disabled = 1;
+        if(clearPointerCanvas){
+            clearPointerCanvas = false;
+            lv_obj_set_opa_scale(g_pointer_canvas, LV_OPA_TRANSP); 
+        }
+    }
+    else
+    {
+        if(!clearPointerCanvas)
+        {
+            clearPointerCanvas = true;
+            lv_obj_set_opa_scale(g_pointer_canvas, LV_OPA_100); 
+        }
+        gyro_indev->proc.disabled = 0;
+    }
+}
+
 void driversInitialize() {
     NWindow *win = nwindowGetDefault();
     framebufferCreate(&g_framebuffer, win, LV_HOR_RES_MAX, LV_VER_RES_MAX, PIXEL_FORMAT_RGBA_8888, 2);
@@ -170,13 +186,22 @@ void driversInitialize() {
     lv_indev_drv_init(&pointer_drv);
     pointer_drv.type = LV_INDEV_TYPE_POINTER;
     pointer_drv.read_cb = gyro_cb;
-    lv_indev_t *gyro_indev = lv_indev_drv_register(&pointer_drv);
+    gyro_indev = lv_indev_drv_register(&pointer_drv);
     g_pointer_canvas = lv_canvas_create(lv_scr_act(), NULL);
     lv_canvas_set_buffer(g_pointer_canvas, g_pointer_buff, 96,96, LV_IMG_CF_TRUE_COLOR_ALPHA);
     g_pointer_fake_canvas = lv_canvas_create(lv_scr_act(), NULL);
     lv_indev_set_cursor(gyro_indev, g_pointer_fake_canvas); // set cursor to fake canvas for centering click and rotating cursor
     lv_obj_set_parent(g_pointer_canvas, lv_layer_sys()); // set the real cursor to the system layer where the cursor should be drawn
+    lv_obj_set_opa_scale_enable(g_pointer_canvas, true);
+    if(hidGetHandheldMode()){
+        gyro_indev->proc.disabled = 1;
+        clearPointerCanvas = false;
+        lv_obj_set_opa_scale(g_pointer_canvas, LV_OPA_TRANSP); 
+    }
+    lv_task_t * handheld_check = lv_task_create(handheldChangedTask, 500, LV_TASK_PRIO_MID, NULL);
+    lv_task_ready(handheld_check);
     logPrintf("gyro_indev(%p)\n", gyro_indev);
+    
     // cursor asset
     u8 *data;
     size_t size;
