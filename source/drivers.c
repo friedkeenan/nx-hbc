@@ -41,9 +41,9 @@ static void flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *colo
 
 void centerGyro(SixAxisSensorValues sixaxis){
     // these track center, unknown is actually a float value that can keep track of full rotations, 1 unit = 1 full rotation in that direction
-    g_gyro_center.x = sixaxis.unk.x; //rotation along y (which trannslates to left right)
-    g_gyro_center.y = sixaxis.unk.z; //rotation along x (^^^^^^^^^^^^^^^^^^^^ up down) [Note: this is switched with Z in handheld mode]
-    g_gyro_center.z = sixaxis.unk.y; //rotation on forward axis
+    g_gyro_center.x = sixaxis.unk.x; // rotation along y (which trannslates to left right)
+    g_gyro_center.y = sixaxis.unk.z; // rotation along x (^^^^^^^^^^^^^^^^^^^^ up down) [Note: this is switched with Z in handheld mode]
+    g_gyro_center.z = sixaxis.unk.y; // rotation on forward axis
     logPrintf("gyro centered at x: % .4f, y: % .4f \n", g_gyro_center.x, g_gyro_center.y);
 }
 
