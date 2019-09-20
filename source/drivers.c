@@ -40,7 +40,6 @@ static void flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *colo
     lv_disp_flush_ready(drv);
 }
 
-
 static bool touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
     if (hidTouchCount()) {
         hidTouchRead(&g_touch_pos, 0);
