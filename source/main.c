@@ -14,11 +14,12 @@ int main(int argc, char **argv) {
     logInitialize("/hbc.log");
 
     lv_init();
-    driversInitialize();
 
     Result rc = assetsInit();
     if (R_FAILED(rc)) return rc;
 
+    driversInitialize();
+    
     decoderInitialize();
 
     setup_screen();
