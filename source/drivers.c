@@ -2,6 +2,7 @@
 #include <switch.h>
 #include <math.h>
 
+#include "drivers.h"
 #include "log.h"
 #include "assets.h"
 
@@ -77,7 +78,7 @@ static bool keypad_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
     return false;
 }
 
-static void centerGyro(SixAxisSensorValues sixaxis) {
+static void center_gyro(SixAxisSensorValues sixaxis) {
     // These track center, unknown is actually a float value that can keep track of full rotations, 1 unit = 1 full rotation in that direction
     g_gyro_center.x = sixaxis.unk.x; // Rotation along y (which trannslates to left right)
     g_gyro_center.y = sixaxis.unk.z; // Rotation along x (^^^^^^^^^^^^^^^^^^^^ up down) [Note: this is switched with Z in handheld mode]
@@ -94,7 +95,7 @@ static bool gyro_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
     // Center gyro
     u64 pressed = hidKeysHeld(CONTROLLER_P1_AUTO);
     if (pressed & KEY_X)
-        centerGyro(sixaxis);
+        center_gyro(sixaxis);
 
     if (pressed & KEY_A)
         data->state = LV_INDEV_STATE_PR;
@@ -103,20 +104,17 @@ static bool gyro_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
 
     // Center input according to g_gyro_center
     HidVector finalvector;
-    finalvector.x = sixaxis.unk.x - g_gyro_center.x;
-    finalvector.y = sixaxis.unk.z - g_gyro_center.y;
+    finalvector.x = CURSOR_SENSITIVITY * (sixaxis.unk.x - g_gyro_center.x);
+    finalvector.y = CURSOR_SENSITIVITY * (sixaxis.unk.z - g_gyro_center.y);
     finalvector.z = sixaxis.unk.y - g_gyro_center.z;
 
-    float XAngle = 360 * finalvector.x;
-    float YAngle = 360 * finalvector.y;
-    float ZAngle = 360 * finalvector.z;
-    float XRadian = XAngle * M_PI / 180;
-    float YRadian = YAngle * M_PI / 180;
-    float ZRadian = ZAngle * M_PI / 180;
+    float x_rad = 2 * M_PI * finalvector.x;
+    float y_rad = 2 * M_PI * finalvector.y;
+    float z_rad = 2 * M_PI * finalvector.z;
 
     // Rotate 3d point at (0,0,1) along x y and z and then put it into (x,y) coordinates this return a point inside a circile of radius 1
-    finalvector.x = sin(ZRadian) * sin(XRadian) - cos(ZRadian) * sin(YRadian) * cos(XRadian);
-    finalvector.y = cos(ZRadian) * sin(XRadian) + sin(ZRadian) * sin(YRadian) * cos(XRadian);
+    finalvector.x = sin(z_rad) * sin(x_rad) - cos(z_rad) * sin(y_rad) * cos(x_rad);
+    finalvector.y = cos(z_rad) * sin(x_rad) + sin(z_rad) * sin(y_rad) * cos(x_rad);
 
     // x and y need to be clamped to our boundries should the absolute value be above it
     if (fabs(finalvector.x) > g_pointer_screen_magic) {
@@ -142,13 +140,13 @@ static bool gyro_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
 
     // Clear canvas and draw rotated pointer according to finalvector.z
     memset(g_pointer_buf, 0, sizeof(g_pointer_buf));
-    lv_canvas_rotate(g_pointer_canvas, &g_pointer_img,  ZAngle, 0, 0, 96 / 2, 96 / 2);
+    lv_canvas_rotate(g_pointer_canvas, &g_pointer_img,  z_rad * 180 / M_PI, 0, 0, 96 / 2, 96 / 2);
     lv_obj_align(g_pointer_canvas, g_pointer_fake_canvas, LV_ALIGN_IN_TOP_LEFT, -48, -48);
     
     return false;
 }
 
-static void handheldChangedTask(lv_task_t * t) {
+static void handheld_changed_task(lv_task_t * t) {
     if (hidGetHandheldMode()) {
         g_gyro_indev->proc.disabled = 1;
 
@@ -217,7 +215,7 @@ void driversInitialize() {
         lv_obj_set_opa_scale(g_pointer_canvas, LV_OPA_TRANSP);
     }
 
-    lv_task_t * handheld_check = lv_task_create(handheldChangedTask, 500, LV_TASK_PRIO_MID, NULL);
+    lv_task_t * handheld_check = lv_task_create(handheld_changed_task, 500, LV_TASK_PRIO_MID, NULL);
     lv_task_ready(handheld_check);
     
     // Cursor asset

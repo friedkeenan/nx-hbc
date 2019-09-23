@@ -2,6 +2,8 @@
 
 #include <lvgl/lvgl.h>
 
+#define CURSOR_SENSITIVITY 2
+
 void driversInitialize();
 void driversExit();
 
