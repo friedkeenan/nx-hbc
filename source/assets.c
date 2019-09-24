@@ -21,6 +21,7 @@
 
 #include <minizip/unzip.h>
 #include <string.h>
+#include <lvgl/lvgl.h>
 
 typedef struct {
     u8 *buffer;
@@ -45,7 +46,7 @@ assetsDataEntry g_assetsDataList[AssetId_Max] = {
 };
 
 static void assetsClearEntry(assetsDataEntry *entry) {
-    free(entry->buffer);
+    lv_mem_free(entry->buffer);
 
     entry->size = 0;
     entry->buffer = NULL;
@@ -68,7 +69,7 @@ static int assetsLoadFile(unzFile zipf, assetsDataEntry *entry) {
         if (filesize == 0) ret = -10;
 
         if (ret==UNZ_OK) {
-            buffer = (u8*)malloc(filesize);
+            buffer = (u8*)lv_mem_alloc(filesize);
             if (buffer) {
                 memset(buffer, 0, filesize);
             } else {
@@ -85,7 +86,7 @@ static int assetsLoadFile(unzFile zipf, assetsDataEntry *entry) {
             }
         }
 
-        if (ret!=UNZ_OK && buffer!=NULL) free(buffer);
+        if (ret!=UNZ_OK && buffer!=NULL) lv_mem_free(buffer);
 
         unzCloseCurrentFile(zipf);
     }
