@@ -41,7 +41,7 @@ lv_res_t app_entry_init_icon(app_entry_t *entry) {
         .data_size = asset_header.icon.size,
         .header.cf = LV_IMG_CF_RAW,
     };
-    entry->icon.data = malloc(entry->icon.data_size);
+    entry->icon.data = lv_mem_alloc(entry->icon.data_size);
     if (entry->icon.data == NULL) {
         LV_LOG_WARN("Bad icon alloc");
         fclose(fp);
@@ -64,7 +64,7 @@ lv_res_t app_entry_init_icon(app_entry_t *entry) {
 }
 
 void app_entry_free_icon(app_entry_t *entry) {
-    free((void *) entry->icon.data);
+    lv_mem_free((void *) entry->icon.data);
 }
 
 lv_res_t app_entry_init_info(app_entry_t *entry) {
