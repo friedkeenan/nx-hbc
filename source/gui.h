@@ -4,7 +4,7 @@
 
 #define MAX_LIST_ROWS 5
 
-#define PAGE_SPEED 200
+#define PAGE_TIME 200
 #define PAGE_WAIT 75
 
 #define STAR_W 25
