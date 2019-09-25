@@ -16,7 +16,11 @@ static lv_img_dsc_t g_star;
 
 static lv_img_dsc_t g_list_dscs[2] = {0}; // {normal, hover}
 static lv_obj_t *g_list_buttons[MAX_LIST_ROWS] = {0};
+static lv_obj_t *g_list_buttons_tmp[MAX_LIST_ROWS] = {0};
+
 static lv_obj_t *g_list_covers[MAX_LIST_ROWS] = {0}; // Needed because when objects are direct children of an imgbtn, they're always centered (don't know why)
+static lv_obj_t *g_list_covers_tmp[MAX_LIST_ROWS] = {0};
+
 static lv_obj_t *g_curr_focused = NULL;
 static int g_list_index = 0; // -3 for right arrow, -2 for left
 
@@ -24,7 +28,7 @@ static lv_img_dsc_t g_arrow_dscs[4] = {0}; // {next_normal, next_hover, prev_nor
 static lv_obj_t *g_arrow_buttons[2] = {0}; // {next, prev}
 
 static int g_curr_page = 0;
-static lv_anim_t g_anim;
+static lv_anim_t g_page_anims[MAX_LIST_ROWS] = {0};
 
 static lv_img_dsc_t g_logo;
 
@@ -32,15 +36,10 @@ static lv_style_t g_cover_style;
 static lv_style_t g_name_style;
 static lv_style_t g_auth_ver_style;
 
+static void change_page(int dir);
+
 static inline int num_buttons() {
     return fmin(g_apps_ll_len - MAX_LIST_ROWS * g_curr_page, MAX_LIST_ROWS);
-}
-
-static inline int get_index_for_button(lv_obj_t *btn) {
-    for (int i = 0; i < MAX_LIST_ROWS; i++) {
-        if (g_list_buttons[i] == btn)
-            return i;
-    }
 }
 
 static app_entry_t *get_app_for_button(int btn_idx) {
@@ -157,6 +156,7 @@ static void arrow_button_event(lv_obj_t *obj, lv_event_t event) {
 
         case LV_EVENT_CLICKED: {
             logPrintf("CLICKED\n");
+            change_page(1);
         } break;
     }
 }
@@ -197,6 +197,81 @@ static void draw_entry_on_obj(lv_obj_t *obj, app_entry_t *entry) {
     lv_obj_align(ver, NULL, LV_ALIGN_IN_TOP_RIGHT, -offset, offset);
 }
 
+static void list_ready_cb(lv_anim_t *anim) {
+    lv_obj_t *anim_obj = anim->var;
+    int dir = (anim->start < anim->end) ? -1 : 1;
+
+    int anim_idx = (lv_obj_get_y(anim_obj) - (LV_VER_RES_MAX - LIST_BTN_H * MAX_LIST_ROWS) / 2) / LIST_BTN_H;
+
+    logPrintf("anim_idx(%d)\n", anim_idx);
+
+    app_entry_t *entry;
+    int i = 0, idx = (g_curr_page - 1) * MAX_LIST_ROWS + anim_idx;
+    LV_LL_READ(g_apps_ll, entry) {
+        if (i == idx)
+            break;
+        i++;
+    }
+
+    logPrintf("entry->path(%s)\n", entry->path);
+    app_entry_free_icon(entry);
+
+    if (g_list_buttons_tmp[anim_idx] != NULL) {
+        lv_obj_set_parent(g_list_buttons_tmp[anim_idx], lv_scr_act());
+        lv_obj_align(g_list_buttons_tmp[anim_idx], anim_obj, (dir < 0) ? LV_ALIGN_IN_LEFT_MID : LV_ALIGN_IN_RIGHT_MID, 0, 0);
+    }
+
+    lv_anim_del(anim_obj, anim->exec_cb);
+    lv_obj_del(anim_obj);
+
+    g_list_buttons[anim_idx] = g_list_buttons_tmp[anim_idx];
+    g_list_covers[anim_idx] = g_list_covers_tmp[anim_idx];
+
+    g_list_buttons_tmp[anim_idx] = NULL;
+    g_list_covers_tmp[anim_idx] = NULL;
+}
+
+static void change_page(int dir) {
+    lv_obj_t *anim_objs[MAX_LIST_ROWS];
+
+    anim_objs[0] = lv_obj_create(lv_scr_act(), NULL);
+    lv_obj_set_style(anim_objs[0], &g_cover_style);
+    lv_obj_set_size(anim_objs[0], LV_HOR_RES_MAX + LIST_BTN_W, LIST_BTN_H);
+    lv_obj_set_pos(anim_objs[0], ((dir < 0) ? -LV_HOR_RES_MAX : 0) + lv_obj_get_x(g_list_buttons[0]), lv_obj_get_y(g_list_buttons[0]));
+    lv_obj_set_parent(g_list_buttons[0], anim_objs[0]);
+    lv_obj_align(g_list_buttons[0], NULL, LV_ALIGN_IN_LEFT_MID, 0, 0);
+
+    for (int i = 1; i < MAX_LIST_ROWS; i++) {
+        anim_objs[i] = lv_obj_create(lv_scr_act(), anim_objs[i - 1]);
+        lv_obj_align(anim_objs[i], anim_objs[i - 1], LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
+        lv_obj_set_parent(g_list_buttons[i], anim_objs[i]);
+        lv_obj_align(g_list_buttons[i], NULL, LV_ALIGN_IN_LEFT_MID, 0, 0);
+    }
+
+    app_entry_t *entry = get_app_for_button(MAX_LIST_ROWS - 1);
+    g_curr_page += dir;
+    for (int i = 0; i < num_buttons(); i++) {
+        g_list_buttons_tmp[i] = lv_imgbtn_create(anim_objs[i], g_list_buttons[i]);
+        g_list_covers_tmp[i] = lv_obj_create(g_list_buttons_tmp[i], g_list_covers[i]);
+
+        entry = lv_ll_get_next(&g_apps_ll, entry);
+        app_entry_init_icon(entry);
+        draw_entry_on_obj(g_list_covers_tmp[i], entry);
+
+        lv_obj_align(g_list_buttons_tmp[i], anim_objs[i], (dir < 0) ? LV_ALIGN_IN_LEFT_MID : LV_ALIGN_IN_RIGHT_MID, 0, 0);
+    }
+
+    for (int i = 0; i < MAX_LIST_ROWS; i++) {
+        lv_anim_set_exec_cb(&g_page_anims[i], anim_objs[i], (lv_anim_exec_xcb_t) lv_obj_set_x);
+        lv_anim_set_time(&g_page_anims[i], 200, 100 * i);
+        lv_anim_set_values(&g_page_anims[i], lv_obj_get_x(anim_objs[i]), lv_obj_get_x(anim_objs[i]) + ((dir < 0) ? 1 : -1) * LV_HOR_RES_MAX);
+        lv_anim_set_path_cb(&g_page_anims[i], lv_anim_path_linear);
+        lv_anim_set_ready_cb(&g_page_anims[i], list_ready_cb);
+
+        lv_anim_create(&g_page_anims[i]);
+    }
+}
+
 static void draw_buttons() {
     if (num_buttons() > 0) {
         lv_group_set_style_mod_cb(keypad_group(), focus_cb);
@@ -208,8 +283,8 @@ static void draw_buttons() {
         lv_imgbtn_set_src(g_list_buttons[0], LV_BTN_STATE_PR, &g_list_dscs[0]);
         lv_obj_align(g_list_buttons[0], NULL, LV_ALIGN_IN_TOP_MID, 0, (LV_VER_RES_MAX - LIST_BTN_H * MAX_LIST_ROWS) / 2);
 
-        g_list_covers[0] = lv_cont_create(g_list_buttons[0], NULL);
-        lv_cont_set_style(g_list_covers[0], LV_CONT_STYLE_MAIN, &g_cover_style);
+        g_list_covers[0] = lv_obj_create(g_list_buttons[0], NULL);
+        lv_obj_set_style(g_list_covers[0], &g_cover_style);
         lv_obj_set_size(g_list_covers[0], lv_obj_get_width(g_list_buttons[0]), lv_obj_get_height(g_list_buttons[0]));
 
         app_entry_t *entry = get_app_for_button(0);

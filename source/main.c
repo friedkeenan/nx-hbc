@@ -37,7 +37,6 @@ int main(int argc, char **argv) {
 
         lv_task_handler();
         svcSleepThread(1e+6L); // Sleep for 1 millisecond
-        lv_tick_inc(1);
     }
 
     assetsExit();

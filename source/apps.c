@@ -3,6 +3,7 @@
 #include <dirent.h>
 #include <limits.h>
 #include <string.h>
+#include <malloc.h>
 #include <switch.h>
 
 #include "apps.h"
@@ -12,7 +13,7 @@
 lv_res_t app_entry_init_icon(app_entry_t *entry) {
     FILE *fp = fopen(entry->path, "rb");
     if (fp == NULL) {
-        logPrintf("Bad file\n");
+        LV_LOG_WARN("Bad file");
         return LV_RES_INV;
     }
 
@@ -21,14 +22,14 @@ lv_res_t app_entry_init_icon(app_entry_t *entry) {
 
     fseek(fp, sizeof(NroStart), SEEK_SET);
     if (fread(&header, sizeof(header), 1, fp) != 1) {
-        logPrintf("Bad header read\n");
+        LV_LOG_WARN("Bad header read");
         fclose(fp);
         return LV_RES_INV;
     }
 
     fseek(fp, header.size, SEEK_SET);
     if (fread(&asset_header, sizeof(asset_header), 1, fp) != 1) {
-        logPrintf("Bad asset header read\n");
+        LV_LOG_WARN("Bad asset header read");
         fclose(fp);
         return LV_RES_INV;
     }
@@ -40,16 +41,16 @@ lv_res_t app_entry_init_icon(app_entry_t *entry) {
         .data_size = asset_header.icon.size,
         .header.cf = LV_IMG_CF_RAW,
     };
-    entry->icon.data = lv_mem_alloc(entry->icon.data_size);
+    entry->icon.data = malloc(entry->icon.data_size);
     if (entry->icon.data == NULL) {
-        logPrintf("Bad icon alloc\n");
+        LV_LOG_WARN("Bad icon alloc");
         fclose(fp);
         return LV_RES_INV;
     }
 
     fseek(fp, header.size + asset_header.icon.offset, SEEK_SET);
     if (fread((u8 *) entry->icon.data, entry->icon.data_size, 1, fp) != 1) {
-        logPrintf("Bad icon read\n");
+        LV_LOG_WARN("Bad icon read");
         fclose(fp);
         return LV_RES_INV;
     }
@@ -63,13 +64,13 @@ lv_res_t app_entry_init_icon(app_entry_t *entry) {
 }
 
 void app_entry_free_icon(app_entry_t *entry) {
-    lv_mem_free(entry->icon.data);
+    free((void *) entry->icon.data);
 }
 
 lv_res_t app_entry_init_info(app_entry_t *entry) {
     FILE *fp = fopen(entry->path, "rb");
     if (fp == NULL) {
-        logPrintf("Bad file\n");
+        LV_LOG_WARN("Bad file\n");
         return LV_RES_INV;
     }
 
@@ -78,14 +79,14 @@ lv_res_t app_entry_init_info(app_entry_t *entry) {
 
     fseek(fp, sizeof(NroStart), SEEK_SET);
     if (fread(&header, sizeof(header), 1, fp) != 1) {
-        logPrintf("Bad header read\n");
+        LV_LOG_WARN("Bad header read\n");
         fclose(fp);
         return LV_RES_INV;
     }
 
     fseek(fp, header.size, SEEK_SET);
     if (fread(&asset_header, sizeof(asset_header), 1, fp) != 1) {
-        logPrintf("Bad asset header read\n");
+        LV_LOG_WARN("Bad asset header read\n");
         fclose(fp);
         return LV_RES_INV;
     }
@@ -94,7 +95,7 @@ lv_res_t app_entry_init_info(app_entry_t *entry) {
 
     fseek(fp, header.size + asset_header.nacp.offset, SEEK_SET);
     if (fread(&nacp, sizeof(nacp), 1, fp) != 1) {
-        logPrintf("Bad nacp read\n");
+        LV_LOG_WARN("Bad nacp read\n");
         fclose(fp);
         return LV_RES_INV;
     }

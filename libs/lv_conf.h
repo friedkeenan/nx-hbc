@@ -69,7 +69,7 @@ typedef int16_t lv_coord_t;
 #define LV_MEM_CUSTOM      0
 #if LV_MEM_CUSTOM == 0
 /* Size of the memory used by `lv_mem_alloc` in bytes (>= 2kB)*/
-#  define LV_MEM_SIZE    (32U * 1024U * 1024U)
+#  define LV_MEM_SIZE    (128U * 1024U * 1024U)
 
 /* Complier prefix for a big array declaration */
 #  define LV_MEM_ATTR
@@ -199,10 +199,10 @@ typedef void * lv_img_decoder_user_data_t;
 
 /* 1: use a custom tick source.
  * It removes the need to manually update the tick with `lv_tick_inc`) */
-#define LV_TICK_CUSTOM     0
+#define LV_TICK_CUSTOM     1
 #if LV_TICK_CUSTOM == 1
-#define LV_TICK_CUSTOM_INCLUDE  "something.h"       /*Header for the sys time function*/
-#define LV_TICK_CUSTOM_SYS_TIME_EXPR (millis())     /*Expression evaluating to current systime in ms*/
+#define LV_TICK_CUSTOM_INCLUDE  <switch.h>       /*Header for the sys time function*/
+#define LV_TICK_CUSTOM_SYS_TIME_EXPR ((u32)((armGetSystemTick()*1000ul)/armGetSystemTickFreq()))     /*Expression evaluating to current systime in ms*/
 #endif   /*LV_TICK_CUSTOM*/
 
 typedef void * lv_disp_drv_user_data_t;             /*Type of user data in the display driver*/
@@ -213,7 +213,7 @@ typedef void * lv_indev_drv_user_data_t;            /*Type of user data in the i
  *===============*/
 
 /*1: Enable the log module*/
-#define LV_USE_LOG      0
+#define LV_USE_LOG      1
 #if LV_USE_LOG
 /* How important log should be added:
  * LV_LOG_LEVEL_TRACE       A lot of logs to give detailed information
