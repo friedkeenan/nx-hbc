@@ -27,7 +27,7 @@ static int g_list_index = 0; // -3 for right arrow, -2 for left
 static lv_img_dsc_t g_arrow_dscs[4] = {0}; // {next_normal, next_hover, prev_normal, prev_hover}
 static lv_obj_t *g_arrow_buttons[2] = {0}; // {next, prev}
 
-static int g_curr_page = 0;
+static int g_curr_page = 4;
 static lv_anim_t g_page_anims[MAX_LIST_ROWS] = {0};
 
 static lv_img_dsc_t g_logo;
@@ -156,7 +156,7 @@ static void arrow_button_event(lv_obj_t *obj, lv_event_t event) {
 
         case LV_EVENT_CLICKED: {
             logPrintf("CLICKED\n");
-            change_page(1);
+            change_page(-1);
         } break;
     }
 }
@@ -206,15 +206,17 @@ static void list_ready_cb(lv_anim_t *anim) {
     logPrintf("anim_idx(%d)\n", anim_idx);
 
     app_entry_t *entry;
-    int i = 0, idx = (g_curr_page - 1) * MAX_LIST_ROWS + anim_idx;
+    int i = 0, idx = (g_curr_page - dir) * MAX_LIST_ROWS + anim_idx;
     LV_LL_READ(g_apps_ll, entry) {
         if (i == idx)
             break;
         i++;
     }
 
-    logPrintf("entry->path(%s)\n", entry->path);
-    app_entry_free_icon(entry);
+    if (entry != NULL) {
+        logPrintf("entry(path(%s), icon.data(%p))\n", entry->path, entry->icon.data);
+        app_entry_free_icon(entry);
+    }
 
     if (g_list_buttons_tmp[anim_idx] != NULL) {
         lv_obj_set_parent(g_list_buttons_tmp[anim_idx], lv_scr_act());
@@ -232,6 +234,8 @@ static void list_ready_cb(lv_anim_t *anim) {
 }
 
 static void change_page(int dir) {
+    LV_LOG_INFO("CHANGE PAGE");
+
     lv_obj_t *anim_objs[MAX_LIST_ROWS];
 
     anim_objs[0] = lv_obj_create(lv_scr_act(), NULL);
@@ -239,27 +243,40 @@ static void change_page(int dir) {
     lv_obj_set_size(anim_objs[0], LV_HOR_RES_MAX + LIST_BTN_W, LIST_BTN_H);
     lv_obj_set_pos(anim_objs[0], ((dir < 0) ? -LV_HOR_RES_MAX : 0) + lv_obj_get_x(g_list_buttons[0]), lv_obj_get_y(g_list_buttons[0]));
     lv_obj_set_parent(g_list_buttons[0], anim_objs[0]);
-    lv_obj_align(g_list_buttons[0], NULL, LV_ALIGN_IN_LEFT_MID, 0, 0);
+    lv_obj_align(g_list_buttons[0], NULL, (dir < 0) ? LV_ALIGN_IN_RIGHT_MID : LV_ALIGN_IN_LEFT_MID, 0, 0);
+
+    lv_imgbtn_set_src(g_list_buttons[0], LV_BTN_STATE_REL, &g_list_dscs[0]);
+    lv_imgbtn_set_src(g_list_buttons[0], LV_BTN_STATE_PR, &g_list_dscs[0]);
+
+    LV_LOG_INFO("CREATE ANIM_OBJS");
 
     for (int i = 1; i < MAX_LIST_ROWS; i++) {
         anim_objs[i] = lv_obj_create(lv_scr_act(), anim_objs[i - 1]);
         lv_obj_align(anim_objs[i], anim_objs[i - 1], LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
-        lv_obj_set_parent(g_list_buttons[i], anim_objs[i]);
-        lv_obj_align(g_list_buttons[i], NULL, LV_ALIGN_IN_LEFT_MID, 0, 0);
+        if (g_list_buttons[i] != NULL) {
+            lv_obj_set_parent(g_list_buttons[i], anim_objs[i]);
+            lv_obj_align(g_list_buttons[i], NULL, (dir < 0) ? LV_ALIGN_IN_RIGHT_MID : LV_ALIGN_IN_LEFT_MID, 0, 0);
+        }
     }
 
-    app_entry_t *entry = get_app_for_button(MAX_LIST_ROWS - 1);
+    LV_LOG_INFO("GET ENTRY");
+
+    app_entry_t *entry = get_app_for_button(((dir < 0) ? -1 : 1) * MAX_LIST_ROWS);
     g_curr_page += dir;
     for (int i = 0; i < num_buttons(); i++) {
-        g_list_buttons_tmp[i] = lv_imgbtn_create(anim_objs[i], g_list_buttons[i]);
-        g_list_covers_tmp[i] = lv_obj_create(g_list_buttons_tmp[i], g_list_covers[i]);
+        g_list_buttons_tmp[i] = lv_imgbtn_create(anim_objs[i], g_list_buttons[0]);
+        g_list_covers_tmp[i] = lv_obj_create(g_list_buttons_tmp[i], g_list_covers[0]);
 
-        entry = lv_ll_get_next(&g_apps_ll, entry);
+        if (i > 0)
+            entry = lv_ll_get_next(&g_apps_ll, entry);
+
         app_entry_init_icon(entry);
         draw_entry_on_obj(g_list_covers_tmp[i], entry);
 
         lv_obj_align(g_list_buttons_tmp[i], anim_objs[i], (dir < 0) ? LV_ALIGN_IN_LEFT_MID : LV_ALIGN_IN_RIGHT_MID, 0, 0);
     }
+
+    LV_LOG_INFO("CREATE ANIMS");
 
     for (int i = 0; i < MAX_LIST_ROWS; i++) {
         lv_anim_set_exec_cb(&g_page_anims[i], anim_objs[i], (lv_anim_exec_xcb_t) lv_obj_set_x);
@@ -270,6 +287,8 @@ static void change_page(int dir) {
 
         lv_anim_create(&g_page_anims[i]);
     }
+
+    LV_LOG_INFO("DONE");
 }
 
 static void draw_buttons() {
