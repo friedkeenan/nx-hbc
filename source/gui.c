@@ -215,8 +215,6 @@ static void list_ready_cb(lv_anim_t *anim) {
 
     int anim_idx = (lv_obj_get_y(anim_obj) - (LV_VER_RES_MAX - LIST_BTN_H * MAX_LIST_ROWS) / 2) / LIST_BTN_H;
 
-    logPrintf("anim_idx(%d)\n", anim_idx);
-
     app_entry_t *entry;
     int i = 0, idx = (g_curr_page - dir) * MAX_LIST_ROWS + anim_idx;
     LV_LL_READ(g_apps_ll, entry) {
@@ -225,10 +223,8 @@ static void list_ready_cb(lv_anim_t *anim) {
         i++;
     }
 
-    if (entry != NULL) {
-        logPrintf("entry(path(%s), icon.data(%p))\n", entry->path, entry->icon.data);
+    if (entry != NULL)
         app_entry_free_icon(entry);
-    }
 
     if (g_list_buttons_tmp[anim_idx] != NULL) {
         lv_obj_set_parent(g_list_buttons_tmp[anim_idx], lv_scr_act());
@@ -318,11 +314,6 @@ static void change_page(int dir) {
             if ((i == 0 && num_buttons() >= MAX_LIST_ROWS) || (i == 1 && g_curr_page != 0))
                 lv_anim_set_playback(&g_page_arrow_anims[i], 0);
         } else {
-            /*if (i == 1 && dir > 0 && g_curr_page == 1) {
-                draw_arrow_button(1);
-                lv_obj_set_x(g_arrow_buttons[i], -ARROW_BTN_W);
-            }*/
-
             draw_arrow_button(i);
             lv_obj_set_x(g_arrow_buttons[i], (i == 0) ? LV_HOR_RES_MAX : -ARROW_BTN_W);
             
