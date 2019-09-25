@@ -27,8 +27,9 @@ static int g_list_index = 0; // -3 for right arrow, -2 for left
 static lv_img_dsc_t g_arrow_dscs[4] = {0}; // {next_normal, next_hover, prev_normal, prev_hover}
 static lv_obj_t *g_arrow_buttons[2] = {0}; // {next, prev}
 
-static int g_curr_page = 4;
-static lv_anim_t g_page_anims[MAX_LIST_ROWS] = {0};
+static int g_curr_page = 0;
+static lv_anim_t g_page_list_anims[MAX_LIST_ROWS] = {0};
+static lv_anim_t g_page_arrow_anims[2] = {0};
 
 static lv_img_dsc_t g_logo;
 
@@ -155,8 +156,10 @@ static void arrow_button_event(lv_obj_t *obj, lv_event_t event) {
         } break;
 
         case LV_EVENT_CLICKED: {
-            logPrintf("CLICKED\n");
-            change_page(-1);
+            if (obj == g_arrow_buttons[0])
+                change_page(1);
+            else
+                change_page(-1);
         } break;
     }
 }
@@ -197,6 +200,15 @@ static void draw_entry_on_obj(lv_obj_t *obj, app_entry_t *entry) {
     lv_obj_align(ver, NULL, LV_ALIGN_IN_TOP_RIGHT, -offset, offset);
 }
 
+static void draw_arrow_button(int idx) {
+    g_arrow_buttons[idx] = lv_imgbtn_create(lv_scr_act(), NULL);
+    lv_group_add_obj(keypad_group(), g_arrow_buttons[idx]);
+    lv_obj_set_event_cb(g_arrow_buttons[idx], arrow_button_event);
+    lv_imgbtn_set_src(g_arrow_buttons[idx], LV_BTN_STATE_REL, &g_arrow_dscs[idx * 2]);
+    lv_imgbtn_set_src(g_arrow_buttons[idx], LV_BTN_STATE_PR, &g_arrow_dscs[idx * 2]);
+    lv_obj_align(g_arrow_buttons[idx], NULL, LV_ALIGN_CENTER, ((idx == 0) ? 1 : -1) * ARROW_OFF, 0);
+}
+
 static void list_ready_cb(lv_anim_t *anim) {
     lv_obj_t *anim_obj = anim->var;
     int dir = (anim->start < anim->end) ? -1 : 1;
@@ -233,9 +245,28 @@ static void list_ready_cb(lv_anim_t *anim) {
     g_list_covers_tmp[anim_idx] = NULL;
 }
 
-static void change_page(int dir) {
-    LV_LOG_INFO("CHANGE PAGE");
+static void arrow_ready_cb(lv_anim_t *anim) {
+    lv_obj_t *obj = anim->var;
 
+    int idx;
+    if (obj == g_arrow_buttons[0])
+        idx = 0;
+    else
+        idx = 1;
+
+    lv_anim_del(anim->var, anim->exec_cb);
+
+    if ((idx == 0 && num_buttons() < MAX_LIST_ROWS) || (idx == 1 && g_curr_page == 0)) {
+        lv_obj_del(g_arrow_buttons[idx]);
+        g_arrow_buttons[idx] = NULL;
+
+        lv_group_focus_obj(g_list_buttons[0]);
+    }
+
+    lv_anim_clear_playback(&g_page_arrow_anims[idx]);
+}
+
+static void change_page(int dir) {
     lv_obj_t *anim_objs[MAX_LIST_ROWS];
 
     anim_objs[0] = lv_obj_create(lv_scr_act(), NULL);
@@ -248,8 +279,6 @@ static void change_page(int dir) {
     lv_imgbtn_set_src(g_list_buttons[0], LV_BTN_STATE_REL, &g_list_dscs[0]);
     lv_imgbtn_set_src(g_list_buttons[0], LV_BTN_STATE_PR, &g_list_dscs[0]);
 
-    LV_LOG_INFO("CREATE ANIM_OBJS");
-
     for (int i = 1; i < MAX_LIST_ROWS; i++) {
         anim_objs[i] = lv_obj_create(lv_scr_act(), anim_objs[i - 1]);
         lv_obj_align(anim_objs[i], anim_objs[i - 1], LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
@@ -258,8 +287,6 @@ static void change_page(int dir) {
             lv_obj_align(g_list_buttons[i], NULL, (dir < 0) ? LV_ALIGN_IN_RIGHT_MID : LV_ALIGN_IN_LEFT_MID, 0, 0);
         }
     }
-
-    LV_LOG_INFO("GET ENTRY");
 
     app_entry_t *entry = get_app_for_button(((dir < 0) ? -1 : 1) * MAX_LIST_ROWS);
     g_curr_page += dir;
@@ -276,19 +303,37 @@ static void change_page(int dir) {
         lv_obj_align(g_list_buttons_tmp[i], anim_objs[i], (dir < 0) ? LV_ALIGN_IN_LEFT_MID : LV_ALIGN_IN_RIGHT_MID, 0, 0);
     }
 
-    LV_LOG_INFO("CREATE ANIMS");
-
     for (int i = 0; i < MAX_LIST_ROWS; i++) {
-        lv_anim_set_exec_cb(&g_page_anims[i], anim_objs[i], (lv_anim_exec_xcb_t) lv_obj_set_x);
-        lv_anim_set_time(&g_page_anims[i], 200, 100 * i);
-        lv_anim_set_values(&g_page_anims[i], lv_obj_get_x(anim_objs[i]), lv_obj_get_x(anim_objs[i]) + ((dir < 0) ? 1 : -1) * LV_HOR_RES_MAX);
-        lv_anim_set_path_cb(&g_page_anims[i], lv_anim_path_linear);
-        lv_anim_set_ready_cb(&g_page_anims[i], list_ready_cb);
+        lv_anim_set_exec_cb(&g_page_list_anims[i], anim_objs[i], (lv_anim_exec_xcb_t) lv_obj_set_x);
+        lv_anim_set_values(&g_page_list_anims[i], lv_obj_get_x(anim_objs[i]), lv_obj_get_x(anim_objs[i]) + ((dir < 0) ? 1 : -1) * LV_HOR_RES_MAX);
 
-        lv_anim_create(&g_page_anims[i]);
+        lv_anim_create(&g_page_list_anims[i]);
     }
 
-    LV_LOG_INFO("DONE");
+    for (int i = 0; i < 2; i++) {
+        if (g_arrow_buttons[i] != NULL) {
+            lv_anim_set_values(&g_page_arrow_anims[i], lv_obj_get_x(g_arrow_buttons[i]), (i == 0) ? LV_HOR_RES_MAX : -ARROW_BTN_W);
+            lv_anim_set_time(&g_page_arrow_anims[i], (PAGE_WAIT * (MAX_LIST_ROWS - 1) + PAGE_SPEED) / 2, 0);
+
+            if ((i == 0 && num_buttons() >= MAX_LIST_ROWS) || (i == 1 && g_curr_page != 0))
+                lv_anim_set_playback(&g_page_arrow_anims[i], 0);
+        } else {
+            /*if (i == 1 && dir > 0 && g_curr_page == 1) {
+                draw_arrow_button(1);
+                lv_obj_set_x(g_arrow_buttons[i], -ARROW_BTN_W);
+            }*/
+
+            draw_arrow_button(i);
+            lv_obj_set_x(g_arrow_buttons[i], (i == 0) ? LV_HOR_RES_MAX : -ARROW_BTN_W);
+            
+            lv_anim_set_values(&g_page_arrow_anims[i], lv_obj_get_x(g_arrow_buttons[i]), (LV_HOR_RES_MAX - ARROW_BTN_W) / 2 + ((i == 0) ? 1 : -1) * ARROW_OFF);
+            lv_anim_set_time(&g_page_arrow_anims[i], (PAGE_WAIT * (MAX_LIST_ROWS - 1) + PAGE_SPEED) / 2, (PAGE_WAIT * (MAX_LIST_ROWS - 1) + PAGE_SPEED) / 2);
+        }
+        
+        lv_anim_set_exec_cb(&g_page_arrow_anims[i], g_arrow_buttons[i], (lv_anim_exec_xcb_t) lv_obj_set_x);
+        
+        lv_anim_create(&g_page_arrow_anims[i]);
+    }
 }
 
 static void draw_buttons() {
@@ -323,21 +368,22 @@ static void draw_buttons() {
         g_curr_focused = g_list_covers[0];
 
         if (num_buttons() >= MAX_LIST_ROWS) {
-            g_arrow_buttons[0] = lv_imgbtn_create(lv_scr_act(), NULL);
-            lv_group_add_obj(keypad_group(), g_arrow_buttons[0]);
-            lv_obj_set_event_cb(g_arrow_buttons[0], arrow_button_event);
-            lv_imgbtn_set_src(g_arrow_buttons[0], LV_BTN_STATE_REL, &g_arrow_dscs[0]);
-            lv_imgbtn_set_src(g_arrow_buttons[0], LV_BTN_STATE_PR, &g_arrow_dscs[0]);
-            lv_obj_align(g_arrow_buttons[0], NULL, LV_ALIGN_CENTER, 20 + (ARROW_BTN_W + LIST_BTN_W) / 2, 0);
+            draw_arrow_button(0);
         }
 
         if (g_curr_page > 0) {
-            g_arrow_buttons[1] = lv_imgbtn_create(lv_scr_act(), NULL);
-            lv_group_add_obj(keypad_group(), g_arrow_buttons[1]);
-            lv_obj_set_event_cb(g_arrow_buttons[1], arrow_button_event);
-            lv_imgbtn_set_src(g_arrow_buttons[1], LV_BTN_STATE_REL, &g_arrow_dscs[2]);
-            lv_imgbtn_set_src(g_arrow_buttons[1], LV_BTN_STATE_PR, &g_arrow_dscs[2]);
-            lv_obj_align(g_arrow_buttons[1], NULL, LV_ALIGN_CENTER, -20 - (ARROW_BTN_W + LIST_BTN_W) / 2, 0);
+            draw_arrow_button(1);
+        }
+
+        for (int i = 0; i < MAX_LIST_ROWS; i++) {
+            lv_anim_set_time(&g_page_list_anims[i], PAGE_SPEED, PAGE_WAIT * i);
+            lv_anim_set_path_cb(&g_page_list_anims[i], lv_anim_path_linear);
+            lv_anim_set_ready_cb(&g_page_list_anims[i], list_ready_cb);
+        }
+
+        for (int i = 0; i < 2; i++) {
+            lv_anim_set_path_cb(&g_page_arrow_anims[i], lv_anim_path_linear);
+            lv_anim_set_ready_cb(&g_page_arrow_anims[i], arrow_ready_cb);
         }
     }
 }
