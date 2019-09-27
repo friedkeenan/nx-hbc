@@ -27,8 +27,6 @@ int main(int argc, char **argv) {
     setup_misc();
 
     while (appletMainLoop()) {
-        consoleUpdate(NULL);
-
         hidScanInput();
         u64 kDown = hidKeysDown(CONTROLLER_P1_AUTO);
 
@@ -36,7 +34,6 @@ int main(int argc, char **argv) {
             break;
 
         lv_task_handler();
-        svcSleepThread(1e+6L); // Sleep for 1 millisecond
     }
 
     assetsExit();

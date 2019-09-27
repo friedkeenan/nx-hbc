@@ -30,7 +30,6 @@ static lv_obj_t *g_arrow_buttons[2] = {0}; // {next, prev}
 static int g_curr_page = 0;
 static lv_anim_t g_page_list_anims[MAX_LIST_ROWS] = {0};
 static lv_anim_t g_page_arrow_anims[2] = {0};
-static app_entry_t *g_anim_entry = NULL;
 
 static lv_img_dsc_t g_logo;
 
@@ -216,16 +215,10 @@ static void list_ready_cb(lv_anim_t *anim) {
 
     int anim_idx = (lv_obj_get_y(anim_obj) - (LV_VER_RES_MAX - LIST_BTN_H * MAX_LIST_ROWS) / 2) / LIST_BTN_H;
 
-    if (g_anim_entry == NULL)
-        g_anim_entry = get_app_for_button((dir < 0) ? MAX_LIST_ROWS : (-MAX_LIST_ROWS + anim_idx));
-    else
-        g_anim_entry = lv_ll_get_next(&g_apps_ll, g_anim_entry);
+    app_entry_t *entry = get_app_for_button(((dir < 0) ? MAX_LIST_ROWS : -MAX_LIST_ROWS) + anim_idx);
 
-    if (g_anim_entry != NULL)
-        app_entry_free_icon(g_anim_entry);
-
-    if (anim_idx == MAX_LIST_ROWS - 1)
-        g_anim_entry = NULL;
+    if (entry != NULL)
+        app_entry_free_icon(entry);
 
     if (g_list_buttons_tmp[anim_idx] != NULL) {
         lv_obj_set_parent(g_list_buttons_tmp[anim_idx], lv_scr_act());
@@ -256,6 +249,7 @@ static void arrow_ready_cb(lv_anim_t *anim) {
     if ((idx == 0 && num_buttons() < MAX_LIST_ROWS) || (idx == 1 && g_curr_page == 0)) {
         lv_obj_del(g_arrow_buttons[idx]);
         g_arrow_buttons[idx] = NULL;
+        lv_group_focus_obj(g_list_buttons[0]);
     }
 
     lv_anim_clear_playback(&g_page_arrow_anims[idx]);
@@ -298,9 +292,15 @@ static void change_page(int dir) {
         lv_obj_align(g_list_buttons_tmp[i], anim_objs[i], (dir < 0) ? LV_ALIGN_IN_LEFT_MID : LV_ALIGN_IN_RIGHT_MID, 0, 0);
     }
 
+    u32 tick_start = lv_tick_get();
+
     for (int i = 0; i < MAX_LIST_ROWS; i++) {
         lv_anim_set_exec_cb(&g_page_list_anims[i], anim_objs[i], (lv_anim_exec_xcb_t) lv_obj_set_x);
         lv_anim_set_values(&g_page_list_anims[i], lv_obj_get_x(anim_objs[i]), lv_obj_get_x(anim_objs[i]) + ((dir < 0) ? 1 : -1) * LV_HOR_RES_MAX);
+
+        //logPrintf("lv_tick_elaps: %u\n", lv_tick_elaps(tick_start));
+
+        lv_anim_set_time(&g_page_list_anims[i], PAGE_TIME, PAGE_WAIT * i - lv_tick_elaps(tick_start));
 
         lv_anim_create(&g_page_list_anims[i]);
     }
@@ -366,7 +366,7 @@ static void draw_buttons() {
         }
 
         for (int i = 0; i < MAX_LIST_ROWS; i++) {
-            lv_anim_set_time(&g_page_list_anims[i], PAGE_TIME, PAGE_WAIT * i);
+            //lv_anim_set_time(&g_page_list_anims[i], PAGE_TIME, PAGE_WAIT * i);
             lv_anim_set_path_cb(&g_page_list_anims[i], lv_anim_path_linear);
             lv_anim_set_ready_cb(&g_page_list_anims[i], list_ready_cb);
         }
