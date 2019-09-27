@@ -292,15 +292,9 @@ static void change_page(int dir) {
         lv_obj_align(g_list_buttons_tmp[i], anim_objs[i], (dir < 0) ? LV_ALIGN_IN_LEFT_MID : LV_ALIGN_IN_RIGHT_MID, 0, 0);
     }
 
-    u32 tick_start = lv_tick_get();
-
     for (int i = 0; i < MAX_LIST_ROWS; i++) {
         lv_anim_set_exec_cb(&g_page_list_anims[i], anim_objs[i], (lv_anim_exec_xcb_t) lv_obj_set_x);
         lv_anim_set_values(&g_page_list_anims[i], lv_obj_get_x(anim_objs[i]), lv_obj_get_x(anim_objs[i]) + ((dir < 0) ? 1 : -1) * LV_HOR_RES_MAX);
-
-        //logPrintf("lv_tick_elaps: %u\n", lv_tick_elaps(tick_start));
-
-        lv_anim_set_time(&g_page_list_anims[i], PAGE_TIME, PAGE_WAIT * i - lv_tick_elaps(tick_start));
 
         lv_anim_create(&g_page_list_anims[i]);
     }
@@ -366,7 +360,7 @@ static void draw_buttons() {
         }
 
         for (int i = 0; i < MAX_LIST_ROWS; i++) {
-            //lv_anim_set_time(&g_page_list_anims[i], PAGE_TIME, PAGE_WAIT * i);
+            lv_anim_set_time(&g_page_list_anims[i], PAGE_TIME, PAGE_WAIT * i);
             lv_anim_set_path_cb(&g_page_list_anims[i], lv_anim_path_linear);
             lv_anim_set_ready_cb(&g_page_list_anims[i], list_ready_cb);
         }
