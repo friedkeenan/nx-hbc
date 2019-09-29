@@ -13,6 +13,9 @@
 #define LIST_BTN_W 648
 #define LIST_BTN_H 96
 
+#define DIALOG_BG_W 780
+#define DIALOG_BG_H 540
+
 #define ARROW_BTN_W 96
 #define ARROW_BTN_H 96
 #define ARROW_OFF (20 + (ARROW_BTN_W + LIST_BTN_W) / 2)

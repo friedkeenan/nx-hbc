@@ -43,6 +43,7 @@ assetsDataEntry g_assetsDataList[AssetId_Max] = {
     GENASSET("apps_previous_hover.bin"),
     GENASSET("logo.bin"),
     GENASSET("star.bin"),
+    GENASSET("dialog_background.bin"),
 };
 
 static void assetsClearEntry(assetsDataEntry *entry) {

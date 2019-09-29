@@ -21,6 +21,9 @@ static lv_obj_t *g_list_buttons_tmp[MAX_LIST_ROWS] = {0};
 static lv_obj_t *g_list_covers[MAX_LIST_ROWS] = {0}; // Needed because when objects are direct children of an imgbtn, they're always centered (don't know why)
 static lv_obj_t *g_list_covers_tmp[MAX_LIST_ROWS] = {0};
 
+static lv_img_dsc_t g_dialog_bg;
+static lv_obj_t *g_dialog_cover = NULL;
+
 static lv_obj_t *g_curr_focused = NULL;
 static int g_list_index = 0; // -3 for right arrow, -2 for left
 
@@ -30,15 +33,21 @@ static lv_obj_t *g_arrow_buttons[2] = {0}; // {next, prev}
 static int g_curr_page = 0;
 static lv_anim_t g_page_list_anims[MAX_LIST_ROWS] = {0};
 static lv_anim_t g_page_arrow_anims[2] = {0};
-static bool g_page_anim_running = false;
+static bool g_page_list_anim_running = false;
+static bool g_page_arrow_anim_running = false;
 
 static lv_img_dsc_t g_logo;
 
-static lv_style_t g_cover_style;
+static lv_style_t g_list_covers_style;
+static lv_style_t g_dialog_cover_style;
 static lv_style_t g_name_style;
 static lv_style_t g_auth_ver_style;
 
 static void change_page(int dir);
+
+static inline bool page_anim_running() {
+    return g_page_list_anim_running || g_page_arrow_anim_running;
+}
 
 static inline int num_buttons() {
     return fmin(g_apps_ll_len - MAX_LIST_ROWS * g_curr_page, MAX_LIST_ROWS);
@@ -107,7 +116,32 @@ static void focus_cb(lv_group_t *group, lv_style_t *style) {
     }
 }
 
+static void draw_app_dialog() {
+    g_dialog_cover = lv_obj_create(lv_scr_act(), NULL);
+    lv_obj_set_style(g_dialog_cover, &g_dialog_cover_style);
+    lv_obj_set_size(g_dialog_cover, LV_HOR_RES_MAX, LV_VER_RES_MAX);
+
+    lv_obj_t *dialog_bg = lv_img_create(g_dialog_cover, NULL);
+    lv_img_set_src(dialog_bg, &g_dialog_bg);
+
+    lv_obj_align(dialog_bg, NULL, LV_ALIGN_CENTER, 0, 0);
+
+    app_entry_t *entry = get_app_for_button(g_list_index);
+
+    lv_obj_t *icon = lv_img_create(dialog_bg, NULL);
+    lv_img_set_src(icon, &entry->icon);
+    lv_obj_align(icon, NULL, LV_ALIGN_IN_TOP_LEFT, 20, 20);
+
+    lv_group_remove_all_objs(keypad_group());
+}
+
 static void list_button_event(lv_obj_t *obj, lv_event_t event) {
+    // Covers also use this event so make sure the object we use is the button
+    for (int i = 0; i < MAX_LIST_ROWS; i++) {
+        if (obj == g_list_covers[i])
+            obj = g_list_buttons[i];
+    }  
+
     switch (event) {
         case LV_EVENT_KEY: {
             const u32 *key = lv_event_get_data();
@@ -134,11 +168,16 @@ static void list_button_event(lv_obj_t *obj, lv_event_t event) {
 
             lv_group_focus_obj(g_list_buttons[g_list_index]);
         } break;
+
+        case LV_EVENT_CLICKED: {
+            lv_group_focus_obj(obj);
+            draw_app_dialog();
+        } break;
     }
 }
 
 static void arrow_button_event(lv_obj_t *obj, lv_event_t event) {
-    if (g_page_anim_running)
+    if (page_anim_running())
         return;
 
     switch (event) {
@@ -232,6 +271,9 @@ static void list_ready_cb(lv_anim_t *anim) {
     lv_anim_del(anim_obj, anim->exec_cb);
     lv_obj_del(anim_obj);
 
+    if (anim_idx == MAX_LIST_ROWS - 1)
+        g_page_list_anim_running = false;
+
     g_list_buttons[anim_idx] = g_list_buttons_tmp[anim_idx];
     g_list_covers[anim_idx] = g_list_covers_tmp[anim_idx];
 
@@ -251,7 +293,7 @@ static void arrow_ready_cb(lv_anim_t *anim) {
     lv_anim_del(anim->var, anim->exec_cb);
 
     if (idx == 1)
-        g_page_anim_running = false;
+        g_page_arrow_anim_running = false;
 
     if ((idx == 0 && num_buttons() < MAX_LIST_ROWS) || (idx == 1 && g_curr_page == 0)) {
         lv_obj_del(g_arrow_buttons[idx]);
@@ -263,12 +305,13 @@ static void arrow_ready_cb(lv_anim_t *anim) {
 }
 
 static void change_page(int dir) {
-    g_page_anim_running = true;
+    g_page_list_anim_running = true;
+    g_page_arrow_anim_running = true;
 
     lv_obj_t *anim_objs[MAX_LIST_ROWS];
 
     anim_objs[0] = lv_obj_create(lv_scr_act(), NULL);
-    lv_obj_set_style(anim_objs[0], &g_cover_style);
+    lv_obj_set_style(anim_objs[0], &g_list_covers_style);
     lv_obj_set_size(anim_objs[0], LV_HOR_RES_MAX + LIST_BTN_W, LIST_BTN_H);
     lv_obj_set_pos(anim_objs[0], ((dir < 0) ? -LV_HOR_RES_MAX : 0) + lv_obj_get_x(g_list_buttons[0]), lv_obj_get_y(g_list_buttons[0]));
     lv_obj_set_parent(g_list_buttons[0], anim_objs[0]);
@@ -280,6 +323,7 @@ static void change_page(int dir) {
     for (int i = 1; i < MAX_LIST_ROWS; i++) {
         anim_objs[i] = lv_obj_create(lv_scr_act(), anim_objs[i - 1]);
         lv_obj_align(anim_objs[i], anim_objs[i - 1], LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
+
         if (g_list_buttons[i] != NULL) {
             lv_obj_set_parent(g_list_buttons[i], anim_objs[i]);
             lv_obj_align(g_list_buttons[i], NULL, (dir < 0) ? LV_ALIGN_IN_RIGHT_MID : LV_ALIGN_IN_LEFT_MID, 0, 0);
@@ -341,7 +385,8 @@ static void draw_buttons() {
         lv_obj_align(g_list_buttons[0], NULL, LV_ALIGN_IN_TOP_MID, 0, (LV_VER_RES_MAX - LIST_BTN_H * MAX_LIST_ROWS) / 2);
 
         g_list_covers[0] = lv_obj_create(g_list_buttons[0], NULL);
-        lv_obj_set_style(g_list_covers[0], &g_cover_style);
+        lv_obj_set_event_cb(g_list_covers[0], list_button_event);
+        lv_obj_set_style(g_list_covers[0], &g_list_covers_style);
         lv_obj_set_size(g_list_covers[0], lv_obj_get_width(g_list_buttons[0]), lv_obj_get_height(g_list_buttons[0]));
 
         app_entry_t *entry = get_app_for_button(0);
@@ -401,8 +446,13 @@ void setup_screen() {
 }
 
 void setup_menu() {
-    lv_style_copy(&g_cover_style, &lv_style_plain);
-    g_cover_style.body.opa = LV_OPA_TRANSP;
+    lv_style_copy(&g_list_covers_style, &lv_style_plain);
+    g_list_covers_style.body.opa = LV_OPA_TRANSP;
+
+    lv_style_copy(&g_dialog_cover_style, &lv_style_plain);
+    g_dialog_cover_style.body.main_color = LV_COLOR_BLACK;
+    g_dialog_cover_style.body.grad_color = LV_COLOR_BLACK;
+    g_dialog_cover_style.body.opa = 64;
 
     lv_style_copy(&g_name_style, &lv_style_plain);
     g_name_style.text.font = &lv_font_roboto_28;
@@ -445,6 +495,16 @@ void setup_menu() {
         .header.always_zero = 0,
         .header.w = STAR_W,
         .header.h = STAR_H,
+        .data_size = size,
+        .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
+        .data = data,
+    };
+
+    assetsGetData(AssetId_dialog_background, &data, &size);
+    g_dialog_bg = (lv_img_dsc_t) {
+        .header.always_zero = 0,
+        .header.w = DIALOG_BG_W,
+        .header.h = DIALOG_BG_H,
         .data_size = size,
         .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
         .data = data,
