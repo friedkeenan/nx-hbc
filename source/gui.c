@@ -30,6 +30,7 @@ static lv_obj_t *g_arrow_buttons[2] = {0}; // {next, prev}
 static int g_curr_page = 0;
 static lv_anim_t g_page_list_anims[MAX_LIST_ROWS] = {0};
 static lv_anim_t g_page_arrow_anims[2] = {0};
+static bool g_page_anim_running = false;
 
 static lv_img_dsc_t g_logo;
 
@@ -137,6 +138,9 @@ static void list_button_event(lv_obj_t *obj, lv_event_t event) {
 }
 
 static void arrow_button_event(lv_obj_t *obj, lv_event_t event) {
+    if (g_page_anim_running)
+        return;
+
     switch (event) {
         case LV_EVENT_KEY: {
             const u32 *key = lv_event_get_data();
@@ -246,6 +250,9 @@ static void arrow_ready_cb(lv_anim_t *anim) {
 
     lv_anim_del(anim->var, anim->exec_cb);
 
+    if (idx == 1)
+        g_page_anim_running = false;
+
     if ((idx == 0 && num_buttons() < MAX_LIST_ROWS) || (idx == 1 && g_curr_page == 0)) {
         lv_obj_del(g_arrow_buttons[idx]);
         g_arrow_buttons[idx] = NULL;
@@ -256,6 +263,8 @@ static void arrow_ready_cb(lv_anim_t *anim) {
 }
 
 static void change_page(int dir) {
+    g_page_anim_running = true;
+
     lv_obj_t *anim_objs[MAX_LIST_ROWS];
 
     anim_objs[0] = lv_obj_create(lv_scr_act(), NULL);
