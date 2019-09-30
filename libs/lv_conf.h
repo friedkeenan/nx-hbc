@@ -259,6 +259,7 @@ typedef void * lv_indev_drv_user_data_t;            /*Type of user data in the i
 #define LV_FONT_ROBOTO_16    1
 #define LV_FONT_ROBOTO_22    0
 #define LV_FONT_ROBOTO_28    1
+#define LV_FONT_ROBOTO_48    1
 
 /*Pixel perfect monospace font
  * http://pelulamu.net/unscii/ */
@@ -376,7 +377,7 @@ typedef void * lv_obj_user_data_t;
 #endif
 
 /*Keyboard (dependencies: lv_btnm)*/
-#define LV_USE_KB       1
+#define LV_USE_KB       0
 
 /*Label (dependencies: -*/
 #define LV_USE_LABEL    1
@@ -398,7 +399,7 @@ typedef void * lv_obj_user_data_t;
 #define LV_USE_LED      0
 
 /*Line (dependencies: -*/
-#define LV_USE_LINE     1
+#define LV_USE_LINE     0
 
 /*List (dependencies: lv_page, lv_btn, lv_label, (lv_img optionally for icons ))*/
 #define LV_USE_LIST     0
@@ -414,7 +415,7 @@ typedef void * lv_obj_user_data_t;
 #define LV_USE_MBOX     1
 
 /*Page (dependencies: lv_cont)*/
-#define LV_USE_PAGE     1
+#define LV_USE_PAGE     0
 #if LV_USE_PAGE != 0
 /*Focus default animation time [ms] (0: no animation)*/
 #  define LV_PAGE_DEF_ANIM_TIME     400
@@ -448,7 +449,7 @@ typedef void * lv_obj_user_data_t;
 #define LV_USE_SW       0
 
 /*Text area (dependencies: lv_label, lv_page)*/
-#define LV_USE_TA       1
+#define LV_USE_TA       0
 #if LV_USE_TA != 0
 #  define LV_TA_DEF_CURSOR_BLINK_TIME 400     /*ms*/
 #  define LV_TA_DEF_PWD_SHOW_TIME     1500    /*ms*/
@@ -468,7 +469,7 @@ typedef void * lv_obj_user_data_t;
 #endif
 
 /*Tileview (dependencies: lv_page) */
-#define LV_USE_TILEVIEW     1
+#define LV_USE_TILEVIEW     0
 #if LV_USE_TILEVIEW
 /*Time of slide animation [ms] (0: no animation)*/
 #  define LV_TILEVIEW_DEF_ANIM_TIME   300

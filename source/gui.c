@@ -23,6 +23,7 @@ static lv_obj_t *g_list_covers_tmp[MAX_LIST_ROWS] = {0};
 
 static lv_img_dsc_t g_dialog_bg;
 static lv_obj_t *g_dialog_cover = NULL;
+static lv_style_t g_dialog_name_style;
 
 static lv_obj_t *g_curr_focused = NULL;
 static int g_list_index = 0; // -3 for right arrow, -2 for left
@@ -133,7 +134,7 @@ static void draw_app_dialog() {
     lv_obj_align(icon, NULL, LV_ALIGN_IN_TOP_LEFT, 20, 20);
 
     lv_obj_t *name = lv_label_create(dialog_bg, NULL);
-    lv_obj_set_style(name, &g_name_style);
+    lv_obj_set_style(name, &g_dialog_name_style);
     lv_label_set_static_text(name, entry->name);
     lv_obj_align(name, icon, LV_ALIGN_OUT_RIGHT_TOP, 40, 0);
 
@@ -460,6 +461,10 @@ void setup_menu() {
     g_dialog_cover_style.body.main_color = LV_COLOR_BLACK;
     g_dialog_cover_style.body.grad_color = LV_COLOR_BLACK;
     g_dialog_cover_style.body.opa = 64;
+
+    lv_style_copy(&g_dialog_name_style, &lv_style_plain);
+    g_dialog_name_style.text.font = &lv_font_roboto_48;
+    g_dialog_name_style.text.color = LV_COLOR_WHITE;
 
     lv_style_copy(&g_name_style, &lv_style_plain);
     g_name_style.text.font = &lv_font_roboto_28;
