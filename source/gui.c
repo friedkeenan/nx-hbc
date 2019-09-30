@@ -132,14 +132,21 @@ static void draw_app_dialog() {
     lv_img_set_src(icon, &entry->icon);
     lv_obj_align(icon, NULL, LV_ALIGN_IN_TOP_LEFT, 20, 20);
 
+    lv_obj_t *name = lv_label_create(dialog_bg, NULL);
+    lv_obj_set_style(name, &g_name_style);
+    lv_label_set_static_text(name, entry->name);
+    lv_obj_align(name, icon, LV_ALIGN_OUT_RIGHT_TOP, 40, 0);
+
     lv_group_remove_all_objs(keypad_group());
 }
 
 static void list_button_event(lv_obj_t *obj, lv_event_t event) {
     // Covers also use this event so make sure the object we use is the button
     for (int i = 0; i < MAX_LIST_ROWS; i++) {
-        if (obj == g_list_covers[i])
+        if (obj == g_list_covers[i]) {
             obj = g_list_buttons[i];
+            break;
+        }
     }  
 
     switch (event) {
