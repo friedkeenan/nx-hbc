@@ -84,8 +84,6 @@ static void center_gyro(SixAxisSensorValues sixaxis) {
     g_gyro_center.x = sixaxis.unk.x; // Rotation along y (which trannslates to left right)
     g_gyro_center.y = sixaxis.unk.z; // Rotation along x (^^^^^^^^^^^^^^^^^^^^ up down) [Note: this is switched with Z in handheld mode]
     g_gyro_center.z = sixaxis.unk.y; // Rotation on forward axis
-
-    logPrintf("gyro centered at x: % .4f, y: % .4f \n", g_gyro_center.x, g_gyro_center.y);
 }
 
 static bool gyro_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {

@@ -1,5 +1,6 @@
 #include <lvgl/lvgl.h>
 #include <math.h>
+#include <stdio.h>
 
 #include "gui.h"
 #include "log.h"
@@ -23,7 +24,6 @@ static lv_obj_t *g_list_covers_tmp[MAX_LIST_ROWS] = {0};
 
 static lv_img_dsc_t g_dialog_bg;
 static lv_obj_t *g_dialog_cover = NULL;
-static lv_style_t g_dialog_name_style;
 
 static lv_obj_t *g_curr_focused = NULL;
 static int g_list_index = 0; // -3 for right arrow, -2 for left
@@ -39,10 +39,11 @@ static bool g_page_arrow_anim_running = false;
 
 static lv_img_dsc_t g_logo;
 
-static lv_style_t g_list_covers_style;
-static lv_style_t g_dialog_cover_style;
-static lv_style_t g_name_style;
-static lv_style_t g_auth_ver_style;
+static lv_style_t g_transp_style;
+static lv_style_t g_dark_opa_64_style;
+static lv_style_t g_white_48_style;
+static lv_style_t g_white_28_style;
+static lv_style_t g_white_16_style;
 
 static void change_page(int dir);
 
@@ -82,7 +83,7 @@ static void focus_cb(lv_group_t *group, lv_style_t *style) {
 
     lv_img_dsc_t *dsc;
 
-    for (int i=0; i<num_buttons(); i++) {
+    for (int i = 0; i < num_buttons(); i++) {
         lv_obj_t *obj = g_list_buttons[i];
 
         if (obj == NULL)
@@ -99,7 +100,7 @@ static void focus_cb(lv_group_t *group, lv_style_t *style) {
         lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, dsc);
     }
 
-    for (int i=0; i<2; i++) {
+    for (int i = 0; i < 2; i++) {
         lv_obj_t *obj = g_arrow_buttons[i];
 
         if (obj == NULL)
@@ -117,31 +118,71 @@ static void focus_cb(lv_group_t *group, lv_style_t *style) {
     }
 }
 
+static void exit_dialog() {
+    lv_obj_del(g_dialog_cover);
+
+    for (int i = 0; i < num_buttons(); i++)
+        lv_group_add_obj(keypad_group(), g_list_buttons[i]);
+    
+    for (int i = 0; i < 2; i++) {
+        if (g_arrow_buttons[i] != NULL)
+            lv_group_add_obj(keypad_group(), g_arrow_buttons[i]);
+    }
+
+    lv_group_focus_freeze(keypad_group(), false);
+}
+
+static void dialog_cover_event(lv_obj_t *obj, lv_event_t event) {
+    // This will need to get taken out or changed so that wehen you click on dialog_bg this also doesn't get called
+    if (event == LV_EVENT_CLICKED)
+        exit_dialog();
+}
+
 static void draw_app_dialog() {
     g_dialog_cover = lv_obj_create(lv_scr_act(), NULL);
-    lv_obj_set_style(g_dialog_cover, &g_dialog_cover_style);
+    lv_obj_set_event_cb(g_dialog_cover, dialog_cover_event);
+    lv_obj_set_style(g_dialog_cover, &g_dark_opa_64_style);
     lv_obj_set_size(g_dialog_cover, LV_HOR_RES_MAX, LV_VER_RES_MAX);
 
     lv_obj_t *dialog_bg = lv_img_create(g_dialog_cover, NULL);
     lv_img_set_src(dialog_bg, &g_dialog_bg);
+    lv_obj_set_event_cb(dialog_bg, dialog_cover_event);
 
     lv_obj_align(dialog_bg, NULL, LV_ALIGN_CENTER, 0, 0);
 
     app_entry_t *entry = get_app_for_button(g_list_index);
 
+    lv_obj_t *name = lv_label_create(dialog_bg, NULL);
+    lv_obj_set_style(name, &g_white_48_style);
+    lv_label_set_static_text(name, entry->name);
+    lv_obj_align(name, NULL, LV_ALIGN_IN_TOP_MID, 0, 20);
+
     lv_obj_t *icon = lv_img_create(dialog_bg, NULL);
     lv_img_set_src(icon, &entry->icon);
-    lv_obj_align(icon, NULL, LV_ALIGN_IN_TOP_LEFT, 20, 20);
+    lv_obj_align(icon, NULL, LV_ALIGN_IN_TOP_LEFT, 40, 48 + 20 + 20);
 
-    lv_obj_t *name = lv_label_create(dialog_bg, NULL);
-    lv_obj_set_style(name, &g_dialog_name_style);
-    lv_label_set_static_text(name, entry->name);
-    lv_obj_align(name, icon, LV_ALIGN_OUT_RIGHT_TOP, 40, 0);
+    char version_text[sizeof("Version: ") + APP_VER_LEN] = {0};
+    sprintf(version_text, "Version: %s", entry->version);
 
-    lv_group_remove_all_objs(keypad_group());
+    lv_obj_t *ver = lv_label_create(dialog_bg, NULL);
+    lv_obj_set_style(ver, &g_white_28_style);
+    lv_label_set_text(ver, version_text);
+    lv_obj_align(ver, icon, LV_ALIGN_OUT_RIGHT_TOP, 20, 20);
+
+    char author_text[sizeof("Author: ") + APP_AUTHOR_LEN] = {0};
+    sprintf(author_text, "Author: %s", entry->author);
+
+    lv_obj_t *auth = lv_label_create(dialog_bg, ver);
+    lv_label_set_text(auth, author_text);
+    lv_obj_align(auth, icon, LV_ALIGN_OUT_RIGHT_TOP, 20, 20 + 28 + 10);
+
+    lv_group_focus_freeze(keypad_group(), true);
 }
 
 static void list_button_event(lv_obj_t *obj, lv_event_t event) {
+    if (keypad_group()->frozen)
+        return;
+
     // Covers also use this event so make sure the object we use is the button
     for (int i = 0; i < MAX_LIST_ROWS; i++) {
         if (obj == g_list_covers[i]) {
@@ -185,7 +226,7 @@ static void list_button_event(lv_obj_t *obj, lv_event_t event) {
 }
 
 static void arrow_button_event(lv_obj_t *obj, lv_event_t event) {
-    if (page_anim_running())
+    if (page_anim_running() || keypad_group()->frozen)
         return;
 
     switch (event) {
@@ -234,14 +275,14 @@ static void draw_entry_on_obj(lv_obj_t *obj, app_entry_t *entry) {
     }
 
     lv_obj_t *name = lv_label_create(obj, NULL);
-    lv_label_set_style(name, LV_LABEL_STYLE_MAIN, &g_name_style);
+    lv_label_set_style(name, LV_LABEL_STYLE_MAIN, &g_white_28_style);
     lv_label_set_static_text(name, entry->name);
     lv_label_set_align(name, LV_LABEL_ALIGN_LEFT);
     lv_label_set_long_mode(name, LV_LABEL_LONG_CROP);
     lv_obj_align(name, icon_small, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
 
     lv_obj_t *author = lv_label_create(obj, NULL);
-    lv_label_set_style(author, LV_LABEL_STYLE_MAIN, &g_auth_ver_style);
+    lv_label_set_style(author, LV_LABEL_STYLE_MAIN, &g_white_16_style);
     lv_label_set_align(author, LV_LABEL_ALIGN_RIGHT);
     lv_label_set_static_text(author, entry->author);
     lv_obj_align(author, NULL, LV_ALIGN_IN_BOTTOM_RIGHT, -offset, -offset);
@@ -319,7 +360,7 @@ static void change_page(int dir) {
     lv_obj_t *anim_objs[MAX_LIST_ROWS];
 
     anim_objs[0] = lv_obj_create(lv_scr_act(), NULL);
-    lv_obj_set_style(anim_objs[0], &g_list_covers_style);
+    lv_obj_set_style(anim_objs[0], &g_transp_style);
     lv_obj_set_size(anim_objs[0], LV_HOR_RES_MAX + LIST_BTN_W, LIST_BTN_H);
     lv_obj_set_pos(anim_objs[0], ((dir < 0) ? -LV_HOR_RES_MAX : 0) + lv_obj_get_x(g_list_buttons[0]), lv_obj_get_y(g_list_buttons[0]));
     lv_obj_set_parent(g_list_buttons[0], anim_objs[0]);
@@ -394,7 +435,7 @@ static void draw_buttons() {
 
         g_list_covers[0] = lv_obj_create(g_list_buttons[0], NULL);
         lv_obj_set_event_cb(g_list_covers[0], list_button_event);
-        lv_obj_set_style(g_list_covers[0], &g_list_covers_style);
+        lv_obj_set_style(g_list_covers[0], &g_transp_style);
         lv_obj_set_size(g_list_covers[0], lv_obj_get_width(g_list_buttons[0]), lv_obj_get_height(g_list_buttons[0]));
 
         app_entry_t *entry = get_app_for_button(0);
@@ -454,30 +495,30 @@ void setup_screen() {
 }
 
 void setup_menu() {
-    lv_style_copy(&g_list_covers_style, &lv_style_plain);
-    g_list_covers_style.body.opa = LV_OPA_TRANSP;
+    lv_style_copy(&g_transp_style, &lv_style_plain);
+    g_transp_style.body.opa = LV_OPA_TRANSP;
 
-    lv_style_copy(&g_dialog_cover_style, &lv_style_plain);
-    g_dialog_cover_style.body.main_color = LV_COLOR_BLACK;
-    g_dialog_cover_style.body.grad_color = LV_COLOR_BLACK;
-    g_dialog_cover_style.body.opa = 64;
+    lv_style_copy(&g_dark_opa_64_style, &lv_style_plain);
+    g_dark_opa_64_style.body.main_color = LV_COLOR_BLACK;
+    g_dark_opa_64_style.body.grad_color = LV_COLOR_BLACK;
+    g_dark_opa_64_style.body.opa = 64;
 
-    lv_style_copy(&g_dialog_name_style, &lv_style_plain);
-    g_dialog_name_style.text.font = &lv_font_roboto_48;
-    g_dialog_name_style.text.color = LV_COLOR_WHITE;
+    lv_style_copy(&g_white_48_style, &lv_style_plain);
+    g_white_48_style.text.font = &lv_font_roboto_48;
+    g_white_48_style.text.color = LV_COLOR_WHITE;
 
-    lv_style_copy(&g_name_style, &lv_style_plain);
-    g_name_style.text.font = &lv_font_roboto_28;
-    g_name_style.text.color = LV_COLOR_WHITE;
+    lv_style_copy(&g_white_28_style, &lv_style_plain);
+    g_white_28_style.text.font = &lv_font_roboto_28;
+    g_white_28_style.text.color = LV_COLOR_WHITE;
 
-    lv_style_copy(&g_auth_ver_style, &lv_style_plain);
-    g_auth_ver_style.text.color = LV_COLOR_WHITE;
+    lv_style_copy(&g_white_16_style, &lv_style_plain);
+    g_white_16_style.text.color = LV_COLOR_WHITE;
 
     u8 *data;
     size_t size;
 
     // List buttons
-    for (int i=0; i<2; i++) {
+    for (int i = 0; i < 2; i++) {
         assetsGetData(AssetId_apps_list + i, &data, &size);
         g_list_dscs[i] = (lv_img_dsc_t) {
             .header.always_zero = 0,
@@ -490,7 +531,7 @@ void setup_menu() {
     }
 
     // Arrow buttons
-    for (int i=0; i<4; i++) {
+    for (int i = 0; i < 4; i++) {
         assetsGetData(AssetId_apps_next + i, &data, &size);
         g_arrow_dscs[i] = (lv_img_dsc_t) {
             .header.always_zero = 0,
