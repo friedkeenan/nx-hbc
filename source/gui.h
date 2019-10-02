@@ -7,14 +7,18 @@
 #define PAGE_TIME 250
 #define PAGE_WAIT 94
 
-#define STAR_W 25
-#define STAR_H 24
+#define STAR_SMALL_W 25
+#define STAR_SMALL_H 24
+#define STAR_BIG_W 89
+#define STAR_BIG_H 86
 
 #define LIST_BTN_W 648
 #define LIST_BTN_H 96
 
 #define DIALOG_BG_W 780
 #define DIALOG_BG_H 540
+#define DIALOG_BTN_W 175
+#define DIALOG_BTN_H 72
 
 #define ARROW_BTN_W 96
 #define ARROW_BTN_H 96

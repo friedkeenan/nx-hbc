@@ -9,11 +9,23 @@
 #include "drivers.h"
 #include "apps.h"
 
+enum {
+    DialogButton_min,
+
+    DialogButton_delete = DialogButton_min,
+    DialogButton_load,
+    DialogButton_star,
+    DialogButton_back,
+
+    DialogButton_max
+};
+
 static lv_img_dsc_t g_background;
 
 static lv_ll_t g_apps_ll;
 static int g_apps_ll_len;
-static lv_img_dsc_t g_star;
+
+static lv_img_dsc_t g_star_dscs[2]; // {small, big}
 
 static lv_img_dsc_t g_list_dscs[2] = {0}; // {normal, hover}
 static lv_obj_t *g_list_buttons[MAX_LIST_ROWS] = {0};
@@ -23,9 +35,12 @@ static lv_obj_t *g_list_covers[MAX_LIST_ROWS] = {0}; // Needed because when obje
 static lv_obj_t *g_list_covers_tmp[MAX_LIST_ROWS] = {0};
 
 static lv_img_dsc_t g_dialog_bg;
+static lv_img_dsc_t g_dialog_buttons_dscs[2] = {0};
+static lv_obj_t *g_dialog_buttons[DialogButton_max] = {0};
 static lv_obj_t *g_dialog_cover = NULL;
 
-static lv_obj_t *g_curr_focused = NULL;
+static char *g_dialog_buttons_text[] = {"Delete", "Load", "Star", "Back"};
+
 static int g_list_index = 0; // -3 for right arrow, -2 for left
 
 static lv_img_dsc_t g_arrow_dscs[4] = {0}; // {next_normal, next_hover, prev_normal, prev_hover}
@@ -75,48 +90,7 @@ static app_entry_t *get_app_for_button(int btn_idx) {
     if it's focused, set its source to the hover
     source, else set its source to the normal source.
 */
-static void focus_cb(lv_group_t *group, lv_style_t *style) {
-    if (g_curr_focused == *group->obj_focus)
-        return;
-
-    g_curr_focused = *group->obj_focus;
-
-    lv_img_dsc_t *dsc;
-
-    for (int i = 0; i < num_buttons(); i++) {
-        lv_obj_t *obj = g_list_buttons[i];
-
-        if (obj == NULL)
-            continue;
-
-        if (obj == *group->obj_focus) {
-            g_list_index = i;
-            dsc = &g_list_dscs[1];
-        } else {
-            dsc = &g_list_dscs[0];
-        }
-
-        lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, dsc);
-        lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, dsc);
-    }
-
-    for (int i = 0; i < 2; i++) {
-        lv_obj_t *obj = g_arrow_buttons[i];
-
-        if (obj == NULL)
-            continue;
-
-        if (obj == *group->obj_focus) {
-            g_list_index = i - 3;
-            dsc = &g_arrow_dscs[i * 2 + 1];
-        } else {
-            dsc = &g_arrow_dscs[i * 2];
-        }
-
-        lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, dsc);
-        lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, dsc);
-    }
-}
+static void focus_cb(lv_group_t *group, lv_style_t *style) { }
 
 static void exit_dialog() {
     lv_obj_del(g_dialog_cover);
@@ -128,6 +102,9 @@ static void exit_dialog() {
         if (g_arrow_buttons[i] != NULL)
             lv_group_add_obj(keypad_group(), g_arrow_buttons[i]);
     }
+
+    for (int i = 0; i < DialogButton_max; i++)
+        g_dialog_buttons[i] = NULL;
 
     lv_group_focus_freeze(keypad_group(), false);
 }
@@ -161,6 +138,12 @@ static void draw_app_dialog() {
     lv_img_set_src(icon, &entry->icon);
     lv_obj_align(icon, NULL, LV_ALIGN_IN_TOP_LEFT, 40, 48 + 20 + 20);
 
+    if (entry->starred) {
+        lv_obj_t *star = lv_img_create(dialog_bg, NULL);
+        lv_img_set_src(star, &g_star_dscs[1]);
+        lv_obj_align(star, icon, LV_ALIGN_IN_TOP_LEFT, -STAR_BIG_W / 2, -STAR_BIG_H / 2);
+    }
+
     char version_text[sizeof("Version: ") + APP_VER_LEN] = {0};
     sprintf(version_text, "Version: %s", entry->version);
 
@@ -175,6 +158,25 @@ static void draw_app_dialog() {
     lv_obj_t *auth = lv_label_create(dialog_bg, ver);
     lv_label_set_text(auth, author_text);
     lv_obj_align(auth, icon, LV_ALIGN_OUT_RIGHT_TOP, 20, 20 + 28 + 10);
+
+    g_dialog_buttons[0] = lv_imgbtn_create(dialog_bg, NULL);
+    lv_imgbtn_set_src(g_dialog_buttons[0], LV_BTN_STATE_REL, &g_dialog_buttons_dscs[0]);
+    lv_imgbtn_set_src(g_dialog_buttons[0], LV_BTN_STATE_PR, &g_dialog_buttons_dscs[0]);
+    lv_obj_align(g_dialog_buttons[0], NULL, LV_ALIGN_IN_BOTTOM_LEFT, 40, -20);
+
+    lv_obj_t *button_labels[DialogButton_max];
+
+    button_labels[0] = lv_label_create(g_dialog_buttons[0], NULL);
+    lv_obj_set_style(button_labels[0], &g_white_28_style);
+    lv_label_set_static_text(button_labels[0], g_dialog_buttons_text[DialogButton_min]);
+
+    for (int i = 1; i < DialogButton_max; i++) {
+        g_dialog_buttons[i] = lv_imgbtn_create(dialog_bg, g_dialog_buttons[i - 1]);
+        lv_obj_align(g_dialog_buttons[i], g_dialog_buttons[i - 1], LV_ALIGN_OUT_RIGHT_MID, 0, 0);
+
+        button_labels[i] = lv_label_create(g_dialog_buttons[i], button_labels[i - 1]);
+        lv_label_set_static_text(button_labels[i], g_dialog_buttons_text[i]);
+    }
 
     lv_group_focus_freeze(keypad_group(), true);
 }
@@ -192,6 +194,21 @@ static void list_button_event(lv_obj_t *obj, lv_event_t event) {
     }  
 
     switch (event) {
+        case LV_EVENT_FOCUSED: {
+            lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, &g_list_dscs[1]);
+            lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, &g_list_dscs[1]);
+
+            for (g_list_index = 0; g_list_index < MAX_LIST_ROWS; g_list_index++) {
+                if (obj == g_list_buttons[g_list_index])
+                    break;
+            }
+        } break;
+
+        case LV_EVENT_DEFOCUSED: {
+            lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, &g_list_dscs[0]);
+            lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, &g_list_dscs[0]);
+        } break;
+
         case LV_EVENT_KEY: {
             const u32 *key = lv_event_get_data();
 
@@ -226,10 +243,36 @@ static void list_button_event(lv_obj_t *obj, lv_event_t event) {
 }
 
 static void arrow_button_event(lv_obj_t *obj, lv_event_t event) {
-    if (page_anim_running() || keypad_group()->frozen)
+    if (keypad_group()->frozen)
+        return;
+    if (page_anim_running() && (event != LV_EVENT_FOCUSED && event != LV_EVENT_DEFOCUSED))
         return;
 
     switch (event) {
+        case LV_EVENT_FOCUSED: {
+            if (obj == g_arrow_buttons[0]) {
+                lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, &g_arrow_dscs[1]);
+                lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, &g_arrow_dscs[1]);
+
+                g_list_index = -3;
+            } else {
+                lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, &g_arrow_dscs[3]);
+                lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, &g_arrow_dscs[3]);
+
+                g_list_index = -2;
+            }
+        } break;
+
+        case LV_EVENT_DEFOCUSED: {
+            if (obj == g_arrow_buttons[0]) {
+                lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, &g_arrow_dscs[0]);
+                lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, &g_arrow_dscs[0]);
+            } else {
+                lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, &g_arrow_dscs[2]);
+                lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, &g_arrow_dscs[2]);
+            }
+        } break;
+
         case LV_EVENT_KEY: {
             const u32 *key = lv_event_get_data();
 
@@ -270,8 +313,8 @@ static void draw_entry_on_obj(lv_obj_t *obj, app_entry_t *entry) {
 
     if (entry->starred) {
         lv_obj_t *star = lv_img_create(obj, NULL);
-        lv_img_set_src(star, &g_star);
-        lv_obj_align(star, NULL, LV_ALIGN_IN_TOP_LEFT, 0, 0);
+        lv_img_set_src(star, &g_star_dscs[0]);
+        lv_obj_align(star, icon_small, LV_ALIGN_IN_TOP_LEFT, -STAR_SMALL_W / 2, -STAR_SMALL_H / 2);
     }
 
     lv_obj_t *name = lv_label_create(obj, NULL);
@@ -452,7 +495,8 @@ static void draw_buttons() {
 
             lv_obj_align(g_list_buttons[i], g_list_buttons[i - 1], LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
         }
-        g_curr_focused = g_list_covers[0];
+
+        lv_event_send(g_list_buttons[0], LV_EVENT_FOCUSED, NULL);
 
         if (num_buttons() >= MAX_LIST_ROWS) {
             draw_arrow_button(0);
@@ -543,11 +587,21 @@ void setup_menu() {
         };
     }
 
-    assetsGetData(AssetId_star, &data, &size);
-    g_star = (lv_img_dsc_t) {
+    assetsGetData(AssetId_star_small, &data, &size);
+    g_star_dscs[0] = (lv_img_dsc_t) {
         .header.always_zero = 0,
-        .header.w = STAR_W,
-        .header.h = STAR_H,
+        .header.w = STAR_SMALL_W,
+        .header.h = STAR_SMALL_H,
+        .data_size = size,
+        .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
+        .data = data,
+    };
+
+    assetsGetData(AssetId_star_big, &data, &size);
+    g_star_dscs[1] = (lv_img_dsc_t) {
+        .header.always_zero = 0,
+        .header.w = STAR_BIG_W,
+        .header.h = STAR_BIG_H,
         .data_size = size,
         .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
         .data = data,
@@ -562,6 +616,18 @@ void setup_menu() {
         .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
         .data = data,
     };
+
+    for (int i = 0; i < 2; i++) {
+        assetsGetData(AssetId_button_tiny + i, &data, &size);
+        g_dialog_buttons_dscs[i] = (lv_img_dsc_t) {
+            .header.always_zero = 0,
+            .header.w = DIALOG_BTN_W,
+            .header.h = DIALOG_BTN_H,
+            .data_size = size,
+            .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
+            .data = data,
+        };
+    }
 
     gen_apps_list();
     draw_buttons();

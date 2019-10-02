@@ -31,8 +31,11 @@ typedef enum {
     AssetId_apps_previous,
     AssetId_apps_previous_hover,
     AssetId_logo,
-    AssetId_star,
+    AssetId_star_small,
+    AssetId_star_big,
     AssetId_dialog_background,
+    AssetId_button_tiny,
+    AssetId_button_tiny_focus,
 
     AssetId_Max
 } AssetId;
