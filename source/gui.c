@@ -85,11 +85,6 @@ static app_entry_t *get_app_for_button(int btn_idx) {
     return NULL;
 }
 
-/*
-    Loop through all the buttons in the group;
-    if it's focused, set its source to the hover
-    source, else set its source to the normal source.
-*/
 static void focus_cb(lv_group_t *group, lv_style_t *style) { }
 
 static void exit_dialog() {
@@ -106,7 +101,9 @@ static void exit_dialog() {
     for (int i = 0; i < DialogButton_max; i++)
         g_dialog_buttons[i] = NULL;
 
-    lv_group_focus_freeze(keypad_group(), false);
+    //lv_group_focus_obj(g_list_buttons[g_list_index]);
+
+    //lv_group_focus_freeze(keypad_group(), false);
 }
 
 static void dialog_cover_event(lv_obj_t *obj, lv_event_t event) {
@@ -115,7 +112,24 @@ static void dialog_cover_event(lv_obj_t *obj, lv_event_t event) {
         exit_dialog();
 }
 
+static void dialog_button_event(lv_obj_t *obj, lv_event_t event) {
+    switch (event) {
+        case LV_EVENT_FOCUSED: {
+            lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, &g_dialog_buttons_dscs[1]);
+            lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, &g_dialog_buttons_dscs[1]);
+        } break;
+
+        case LV_EVENT_DEFOCUSED: {
+            lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, &g_dialog_buttons_dscs[0]);
+            lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, &g_dialog_buttons_dscs[0]);
+        } break;
+    }
+}
+
 static void draw_app_dialog() {
+    lv_event_send(g_list_buttons[g_list_index], LV_EVENT_DEFOCUSED, NULL);
+    lv_group_remove_all_objs(keypad_group());
+
     g_dialog_cover = lv_obj_create(lv_scr_act(), NULL);
     lv_obj_set_event_cb(g_dialog_cover, dialog_cover_event);
     lv_obj_set_style(g_dialog_cover, &g_dark_opa_64_style);
@@ -162,6 +176,8 @@ static void draw_app_dialog() {
     g_dialog_buttons[0] = lv_imgbtn_create(dialog_bg, NULL);
     lv_imgbtn_set_src(g_dialog_buttons[0], LV_BTN_STATE_REL, &g_dialog_buttons_dscs[0]);
     lv_imgbtn_set_src(g_dialog_buttons[0], LV_BTN_STATE_PR, &g_dialog_buttons_dscs[0]);
+    lv_group_add_obj(keypad_group(), g_dialog_buttons[0]);
+    lv_obj_set_event_cb(g_dialog_buttons[0], dialog_button_event);
     lv_obj_align(g_dialog_buttons[0], NULL, LV_ALIGN_IN_BOTTOM_LEFT, 40, -20);
 
     lv_obj_t *button_labels[DialogButton_max];
@@ -178,7 +194,9 @@ static void draw_app_dialog() {
         lv_label_set_static_text(button_labels[i], g_dialog_buttons_text[i]);
     }
 
-    lv_group_focus_freeze(keypad_group(), true);
+    lv_group_focus_obj(g_dialog_buttons[DialogButton_load]);
+
+    //lv_group_focus_freeze(keypad_group(), true);
 }
 
 static void list_button_event(lv_obj_t *obj, lv_event_t event) {
@@ -191,7 +209,7 @@ static void list_button_event(lv_obj_t *obj, lv_event_t event) {
             obj = g_list_buttons[i];
             break;
         }
-    }  
+    }
 
     switch (event) {
         case LV_EVENT_FOCUSED: {

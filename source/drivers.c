@@ -148,6 +148,7 @@ static bool gyro_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
 static void handheld_changed_task(lv_task_t * t) {
     if (hidGetHandheldMode()) {
         g_gyro_indev->proc.disabled = true;
+        g_gyro_indev->proc.disabled = false;
 
         if (g_clear_pointer_canvas) {
             g_clear_pointer_canvas = false;
@@ -155,6 +156,7 @@ static void handheld_changed_task(lv_task_t * t) {
         }
     } else {
         g_gyro_indev->proc.disabled = false;
+        g_keypad_indev->proc.disabled = true;
 
         if (!g_clear_pointer_canvas) {
             g_clear_pointer_canvas = true;
@@ -190,6 +192,7 @@ void driversInitialize() {
     keypad_drv.read_cb = keypad_cb;
     g_keypad_indev = lv_indev_drv_register(&keypad_drv);
     logPrintf("g_keypad_indev(%p)\n", g_keypad_indev);
+    g_keypad_indev->proc.disabled = true;
 
     g_keypad_group = lv_group_create();
     lv_indev_set_group(g_keypad_indev, g_keypad_group);
@@ -210,6 +213,7 @@ void driversInitialize() {
 
     if (hidGetHandheldMode()) {
         g_gyro_indev->proc.disabled = true;
+        g_keypad_indev->proc.disabled = false;
 
         g_clear_pointer_canvas = false;
         lv_obj_set_opa_scale(g_pointer_canvas, LV_OPA_TRANSP);
