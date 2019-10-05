@@ -126,6 +126,10 @@ static void dialog_button_event(lv_obj_t *obj, lv_event_t event) {
             lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, &g_dialog_buttons_dscs[0]);
             lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, &g_dialog_buttons_dscs[0]);
         } break;
+
+        case LV_EVENT_CANCEL: {
+            exit_dialog();
+        }
     }
 }
 
