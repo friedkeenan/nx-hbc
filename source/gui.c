@@ -27,6 +27,8 @@ static int g_apps_ll_len;
 
 static lv_img_dsc_t g_star_dscs[2]; // {small, big}
 
+static lv_obj_t *g_curr_focused_tmp = NULL;
+
 static lv_img_dsc_t g_list_dscs[2] = {0}; // {normal, hover}
 static lv_obj_t *g_list_buttons[MAX_LIST_ROWS] = {0};
 static lv_obj_t *g_list_buttons_tmp[MAX_LIST_ROWS] = {0};
@@ -90,20 +92,21 @@ static void focus_cb(lv_group_t *group, lv_style_t *style) { }
 static void exit_dialog() {
     lv_obj_del(g_dialog_cover);
 
-    for (int i = 0; i < num_buttons(); i++)
+    for (int i = 0; i < num_buttons(); i++) {
         lv_group_add_obj(keypad_group(), g_list_buttons[i]);
+        lv_event_send(g_list_buttons[i], LV_EVENT_DEFOCUSED, NULL);
+    }
     
     for (int i = 0; i < 2; i++) {
         if (g_arrow_buttons[i] != NULL)
             lv_group_add_obj(keypad_group(), g_arrow_buttons[i]);
     }
 
+    lv_group_focus_obj(g_curr_focused_tmp);
+    g_curr_focused_tmp = NULL;
+
     for (int i = 0; i < DialogButton_max; i++)
         g_dialog_buttons[i] = NULL;
-
-    //lv_group_focus_obj(g_list_buttons[g_list_index]);
-
-    //lv_group_focus_freeze(keypad_group(), false);
 }
 
 static void dialog_cover_event(lv_obj_t *obj, lv_event_t event) {
@@ -127,6 +130,7 @@ static void dialog_button_event(lv_obj_t *obj, lv_event_t event) {
 }
 
 static void draw_app_dialog() {
+    g_curr_focused_tmp = g_list_buttons[g_list_index];
     lv_event_send(g_list_buttons[g_list_index], LV_EVENT_DEFOCUSED, NULL);
     lv_group_remove_all_objs(keypad_group());
 
