@@ -40,6 +40,7 @@ static lv_img_dsc_t g_dialog_bg;
 static lv_img_dsc_t g_dialog_buttons_dscs[2] = {0};
 static lv_obj_t *g_dialog_buttons[DialogButton_max] = {0};
 static lv_obj_t *g_dialog_cover = NULL;
+static app_entry_t *g_dialog_entry = NULL;
 
 static char *g_dialog_buttons_text[] = {"Delete", "Load", "Star", "Back"};
 
@@ -109,12 +110,6 @@ static void exit_dialog() {
         g_dialog_buttons[i] = NULL;
 }
 
-static void dialog_cover_event(lv_obj_t *obj, lv_event_t event) {
-    // This will need to get taken out or changed so that wehen you click on dialog_bg this also doesn't get called
-    if (event == LV_EVENT_CLICKED)
-        exit_dialog();
-}
-
 static void dialog_button_event(lv_obj_t *obj, lv_event_t event) {
     switch (event) {
         case LV_EVENT_FOCUSED: {
@@ -129,7 +124,49 @@ static void dialog_button_event(lv_obj_t *obj, lv_event_t event) {
 
         case LV_EVENT_CANCEL: {
             exit_dialog();
-        }
+        } break;
+
+        case LV_EVENT_KEY: {
+            const u32 *key = lv_event_get_data();
+
+            int btn_idx;
+            for (btn_idx = 0; btn_idx < DialogButton_max; btn_idx++) {
+                if (obj == g_dialog_buttons[btn_idx])
+                    break;
+            }
+
+            switch (*key) {
+                case LV_KEY_LEFT:
+                    btn_idx--;
+                    
+                    if (btn_idx < DialogButton_min)
+                        btn_idx = DialogButton_max - 1;
+
+                    break;
+
+                case LV_KEY_RIGHT:
+                    btn_idx++;
+
+                    if (btn_idx >= DialogButton_max)
+                        btn_idx = DialogButton_min;
+            }
+
+            lv_group_focus_obj(g_dialog_buttons[btn_idx]);
+        } break;
+
+        case LV_EVENT_CLICKED: {
+            int btn_idx;
+            for (btn_idx = 0; btn_idx < DialogButton_max; btn_idx++) {
+                if (obj == g_dialog_buttons[btn_idx])
+                    break;
+            }
+
+            switch (btn_idx) {
+                case DialogButton_back:
+                    exit_dialog();
+                    break;
+            }
+        } break;
     }
 }
 
@@ -139,35 +176,33 @@ static void draw_app_dialog() {
     lv_group_remove_all_objs(keypad_group());
 
     g_dialog_cover = lv_obj_create(lv_scr_act(), NULL);
-    lv_obj_set_event_cb(g_dialog_cover, dialog_cover_event);
     lv_obj_set_style(g_dialog_cover, &g_dark_opa_64_style);
     lv_obj_set_size(g_dialog_cover, LV_HOR_RES_MAX, LV_VER_RES_MAX);
 
     lv_obj_t *dialog_bg = lv_img_create(g_dialog_cover, NULL);
     lv_img_set_src(dialog_bg, &g_dialog_bg);
-    lv_obj_set_event_cb(dialog_bg, dialog_cover_event);
 
     lv_obj_align(dialog_bg, NULL, LV_ALIGN_CENTER, 0, 0);
 
-    app_entry_t *entry = get_app_for_button(g_list_index);
+    g_dialog_entry = get_app_for_button(g_list_index);
 
     lv_obj_t *name = lv_label_create(dialog_bg, NULL);
     lv_obj_set_style(name, &g_white_48_style);
-    lv_label_set_static_text(name, entry->name);
+    lv_label_set_static_text(name, g_dialog_entry->name);
     lv_obj_align(name, NULL, LV_ALIGN_IN_TOP_MID, 0, 20);
 
     lv_obj_t *icon = lv_img_create(dialog_bg, NULL);
-    lv_img_set_src(icon, &entry->icon);
+    lv_img_set_src(icon, &g_dialog_entry->icon);
     lv_obj_align(icon, NULL, LV_ALIGN_IN_TOP_LEFT, 40, 48 + 20 + 20);
 
-    if (entry->starred) {
+    if (g_dialog_entry->starred) {
         lv_obj_t *star = lv_img_create(dialog_bg, NULL);
         lv_img_set_src(star, &g_star_dscs[1]);
         lv_obj_align(star, icon, LV_ALIGN_IN_TOP_LEFT, -STAR_BIG_W / 2, -STAR_BIG_H / 2);
     }
 
     char version_text[sizeof("Version: ") + APP_VER_LEN] = {0};
-    sprintf(version_text, "Version: %s", entry->version);
+    sprintf(version_text, "Version: %s", g_dialog_entry->version);
 
     lv_obj_t *ver = lv_label_create(dialog_bg, NULL);
     lv_obj_set_style(ver, &g_white_28_style);
@@ -175,7 +210,7 @@ static void draw_app_dialog() {
     lv_obj_align(ver, icon, LV_ALIGN_OUT_RIGHT_TOP, 20, 20);
 
     char author_text[sizeof("Author: ") + APP_AUTHOR_LEN] = {0};
-    sprintf(author_text, "Author: %s", entry->author);
+    sprintf(author_text, "Author: %s", g_dialog_entry->author);
 
     lv_obj_t *auth = lv_label_create(dialog_bg, ver);
     lv_label_set_text(auth, author_text);
