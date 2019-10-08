@@ -31,5 +31,8 @@ void app_entry_free_icon(app_entry_t *entry);
 
 lv_res_t app_entry_init_info(app_entry_t *entry);
 
+void app_entry_get_star_path(app_entry_t *entry, char *in_path);
+lv_res_t app_entry_set_star(app_entry_t *entry, bool star);
+
 lv_res_t app_entry_ll_ins(lv_ll_t *ll, char *path);
 lv_res_t app_entry_ll_init(lv_ll_t *ll);

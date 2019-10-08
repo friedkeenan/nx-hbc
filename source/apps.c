@@ -108,15 +108,38 @@ lv_res_t app_entry_init_info(app_entry_t *entry) {
     return LV_RES_OK;
 }
 
-lv_res_t app_entry_ll_ins(lv_ll_t *ll, char *path) {
-    char star_path[PATH_MAX];
-    strcpy(star_path, path);
-    strcpy(get_name(star_path), ".");
-    strcpy(get_name(star_path) + 1, get_name(path));
-    strcat(star_path, ".star");
+void app_entry_get_star_path(app_entry_t *entry, char *in_path) {
+    strcpy(in_path, entry->path);
+    strcpy(get_name(in_path), ".");
+    strcpy(get_name(in_path) + 1, get_name(entry->path));
+    strcat(in_path, ".star");
+}
 
+lv_res_t app_entry_set_star(app_entry_t *entry, bool star) {
+    char star_path[PATH_MAX];
+    app_entry_get_star_path(entry, star_path);
+
+    if (star) {
+        FILE *fp = fopen(star_path, "w");
+
+        if (fp == NULL)
+            return LV_RES_INV;
+
+        fclose(fp);
+    } else {
+        if (remove(star_path) != 0)
+            return LV_RES_INV;
+    }
+
+    return LV_RES_OK;
+}
+
+lv_res_t app_entry_ll_ins(lv_ll_t *ll, char *path) {
     app_entry_t *entry = lv_ll_ins_tail(ll);
     strcpy(entry->path, path);
+    
+    char star_path[PATH_MAX];
+    app_entry_get_star_path(entry, star_path);
     entry->starred = is_file(star_path);
 
     lv_res_t res = app_entry_init_info(entry);

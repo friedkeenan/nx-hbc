@@ -42,7 +42,7 @@ static lv_obj_t *g_dialog_buttons[DialogButton_max] = {0};
 static lv_obj_t *g_dialog_cover = NULL;
 static app_entry_t *g_dialog_entry = NULL;
 
-static char *g_dialog_buttons_text[] = {"Delete", "Load", "Star", "Back"};
+static char *g_dialog_buttons_text[] = {"Delete", "Load", NULL, "Back"};
 
 static int g_list_index = 0; // -3 for right arrow, -2 for left
 
@@ -64,6 +64,12 @@ static lv_style_t g_white_28_style;
 static lv_style_t g_white_16_style;
 
 static void change_page(int dir);
+static void draw_buttons();
+
+static void gen_apps_list() {
+    app_entry_ll_init(&g_apps_ll);
+    g_apps_ll_len = lv_ll_get_len(&g_apps_ll);
+}
 
 static inline bool page_anim_running() {
     return g_page_list_anim_running || g_page_arrow_anim_running;
@@ -86,6 +92,30 @@ static app_entry_t *get_app_for_button(int btn_idx) {
     }
 
     return NULL;
+}
+
+static void free_current_app_icons() {
+    app_entry_t *entry = get_app_for_button(0);
+
+    for (int i = 0; i < num_buttons(); i++) {
+        app_entry_free_icon(entry);
+        entry = lv_ll_get_next(&g_apps_ll, entry);
+    }
+}
+
+static void del_buttons() {
+    for (int i = 0; i < num_buttons(); i++) {
+        lv_obj_del(g_list_buttons[i]);
+
+        g_list_buttons[i] = NULL;
+        g_list_covers[i] = NULL;
+    }
+
+    for (int i = 0; i < 2; i++) {
+        lv_obj_del(g_arrow_buttons[i]);
+
+        g_arrow_buttons[i] = NULL;
+    }
 }
 
 static void focus_cb(lv_group_t *group, lv_style_t *style) { }
@@ -162,9 +192,42 @@ static void dialog_button_event(lv_obj_t *obj, lv_event_t event) {
             }
 
             switch (btn_idx) {
-                case DialogButton_back:
+                case DialogButton_back: {
                     exit_dialog();
-                    break;
+                } break;
+
+                case DialogButton_star: {
+                    logPrintf("g_dialog_entry(name(%s))\n", g_dialog_entry->name);
+                    app_entry_set_star(g_dialog_entry, !g_dialog_entry->starred);
+
+                    logPrintf("g_dialog_entry(name(%s))\n", g_dialog_entry->name);
+
+                    lv_obj_del(g_dialog_cover);
+                    logPrintf("g_dialog_entry(name(%s))\n", g_dialog_entry->name);
+                    del_buttons();
+                    logPrintf("g_dialog_entry(name(%s))\n", g_dialog_entry->name);
+                    //free_current_app_icons();
+
+                    char entry_path[PATH_MAX];
+                    strcpy(entry_path, g_dialog_entry->path);
+
+                    lv_ll_clear(&g_apps_ll);
+                    gen_apps_list();
+
+                    int i = 0;
+                    app_entry_t *entry;
+                    LV_LL_READ(g_apps_ll, entry) {
+                        if (strcmp(entry_path, entry->path) == 0)
+                            break;
+
+                        i++;
+                    }
+
+                    g_curr_page = i / MAX_LIST_ROWS;
+
+                    draw_buttons();
+                    logPrintf("g_dialog_entry(name(%s))\n", g_dialog_entry->name);
+                } break;
             }
         } break;
     }
@@ -234,7 +297,15 @@ static void draw_app_dialog() {
         lv_obj_align(g_dialog_buttons[i], g_dialog_buttons[i - 1], LV_ALIGN_OUT_RIGHT_MID, 0, 0);
 
         button_labels[i] = lv_label_create(g_dialog_buttons[i], button_labels[i - 1]);
-        lv_label_set_static_text(button_labels[i], g_dialog_buttons_text[i]);
+
+        if (i == DialogButton_star) {
+            if (g_dialog_entry->starred)
+                lv_label_set_text(button_labels[i], "Unstar");
+            else
+                lv_label_set_text(button_labels[i], "Star");
+        } else {
+            lv_label_set_static_text(button_labels[i], g_dialog_buttons_text[i]);
+        }
     }
 
     lv_group_focus_obj(g_dialog_buttons[DialogButton_load]);
@@ -358,11 +429,6 @@ static void arrow_button_event(lv_obj_t *obj, lv_event_t event) {
                 change_page(-1);
         } break;
     }
-}
-
-static void gen_apps_list() {
-    app_entry_ll_init(&g_apps_ll);
-    g_apps_ll_len = lv_ll_get_len(&g_apps_ll);
 }
 
 static void draw_entry_on_obj(lv_obj_t *obj, app_entry_t *entry) {
