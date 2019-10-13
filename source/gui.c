@@ -42,7 +42,7 @@ static lv_obj_t *g_dialog_buttons[DialogButton_max] = {0};
 static lv_obj_t *g_dialog_cover = NULL;
 static app_entry_t *g_dialog_entry = NULL;
 
-static char *g_dialog_buttons_text[] = {"Delete", "Load", NULL, "Back"};
+static char *g_dialog_buttons_text[] = {"Delete", "Load", NULL /* Star/Unstar */, "Back"};
 
 static int g_list_index = 0; // -3 for right arrow, -2 for left
 
@@ -112,8 +112,10 @@ static void del_buttons() {
     }
 
     for (int i = 0; i < 2; i++) {
-        lv_obj_del(g_arrow_buttons[i]);
+        if (g_arrow_buttons[i] == NULL)
+            continue;
 
+        lv_obj_del(g_arrow_buttons[i]);
         g_arrow_buttons[i] = NULL;
     }
 }
@@ -197,16 +199,11 @@ static void dialog_button_event(lv_obj_t *obj, lv_event_t event) {
                 } break;
 
                 case DialogButton_star: {
-                    logPrintf("g_dialog_entry(name(%s))\n", g_dialog_entry->name);
                     app_entry_set_star(g_dialog_entry, !g_dialog_entry->starred);
 
-                    logPrintf("g_dialog_entry(name(%s))\n", g_dialog_entry->name);
-
                     lv_obj_del(g_dialog_cover);
-                    logPrintf("g_dialog_entry(name(%s))\n", g_dialog_entry->name);
                     del_buttons();
-                    logPrintf("g_dialog_entry(name(%s))\n", g_dialog_entry->name);
-                    //free_current_app_icons();
+                    free_current_app_icons();
 
                     char entry_path[PATH_MAX];
                     strcpy(entry_path, g_dialog_entry->path);
@@ -226,7 +223,8 @@ static void dialog_button_event(lv_obj_t *obj, lv_event_t event) {
                     g_curr_page = i / MAX_LIST_ROWS;
 
                     draw_buttons();
-                    logPrintf("g_dialog_entry(name(%s))\n", g_dialog_entry->name);
+
+                    lv_group_focus_obj(g_list_buttons[i % MAX_LIST_ROWS]);
                 } break;
             }
         } break;
