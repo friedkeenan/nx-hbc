@@ -194,8 +194,8 @@ static void dialog_button_event(lv_obj_t *obj, lv_event_t event) {
             }
 
             switch (btn_idx) {
-                case DialogButton_back: {
-                    exit_dialog();
+                case DialogButton_delete: {
+                    app_entry_delete(g_dialog_entry);
                 } break;
 
                 case DialogButton_star: {
@@ -225,6 +225,10 @@ static void dialog_button_event(lv_obj_t *obj, lv_event_t event) {
                     draw_buttons();
 
                     lv_group_focus_obj(g_list_buttons[i % MAX_LIST_ROWS]);
+                } break;
+                
+                case DialogButton_back: {
+                    exit_dialog();
                 } break;
             }
         } break;

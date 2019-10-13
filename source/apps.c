@@ -4,6 +4,7 @@
 #include <limits.h>
 #include <string.h>
 #include <malloc.h>
+#include <unistd.h>
 #include <switch.h>
 
 #include "apps.h"
@@ -108,11 +109,11 @@ lv_res_t app_entry_init_info(app_entry_t *entry) {
     return LV_RES_OK;
 }
 
-void app_entry_get_star_path(app_entry_t *entry, char *in_path) {
-    strcpy(in_path, entry->path);
-    strcpy(get_name(in_path), ".");
-    strcpy(get_name(in_path) + 1, get_name(entry->path));
-    strcat(in_path, ".star");
+void app_entry_get_star_path(app_entry_t *entry, char *out_path) {
+    strcpy(out_path, entry->path);
+    strcpy(get_name(out_path), ".");
+    strcpy(get_name(out_path) + 1, get_name(entry->path));
+    strcat(out_path, ".star");
 }
 
 lv_res_t app_entry_set_star(app_entry_t *entry, bool star) {
@@ -128,6 +129,30 @@ lv_res_t app_entry_set_star(app_entry_t *entry, bool star) {
         fclose(fp);
     } else {
         if (remove(star_path) != 0)
+            return LV_RES_INV;
+    }
+
+    entry->starred = star;
+
+    return LV_RES_OK;
+}
+
+lv_res_t app_entry_delete(app_entry_t *entry) {
+    app_entry_set_star(entry, false); // Try to remove star file
+
+    if (get_name(entry->path) == entry->path + sizeof(APP_DIR)) { // Is just a file under the app directory
+        if (remove(entry->path) != 0)
+            return LV_RES_INV;
+    } else {
+        char del_path[PATH_MAX];
+        strcpy(del_path, entry->path);
+
+        *(get_name(del_path)) = '\0';
+
+        if (R_FAILED(fsdevDeleteDirectoryRecursively(del_path))) // Maybe replace this with some stdio stuff?
+            return LV_RES_INV;
+
+        if (rmdir(del_path) != 0)
             return LV_RES_INV;
     }
 
