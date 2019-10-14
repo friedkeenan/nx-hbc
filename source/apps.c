@@ -161,6 +161,7 @@ lv_res_t app_entry_delete(app_entry_t *entry) {
 }
 
 lv_res_t app_entry_load(app_entry_t *entry) {
+    logPrintf("entry(path(%s))\n", entry->path);
     if (R_FAILED(envSetNextLoad(entry->path, entry->path)))
         return LV_RES_INV;
 

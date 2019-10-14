@@ -80,6 +80,10 @@ static inline int num_buttons() {
     return fmin(g_apps_ll_len - MAX_LIST_ROWS * g_curr_page, MAX_LIST_ROWS);
 }
 
+static inline bool on_last_page() {
+    return g_apps_ll_len - ((g_curr_page + 1) * MAX_LIST_ROWS) <= 0;
+}
+
 static app_entry_t *get_app_for_button(int btn_idx) {
     app_entry_t *entry;
     int i = 0;
@@ -200,6 +204,8 @@ static void dialog_button_event(lv_obj_t *obj, lv_event_t event) {
                     app_entry_delete(g_dialog_entry);
 
                     lv_obj_del(g_dialog_cover);
+                    g_dialog_cover = NULL;
+
                     del_buttons();
                     free_current_app_icons();
 
@@ -213,6 +219,7 @@ static void dialog_button_event(lv_obj_t *obj, lv_event_t event) {
                 } break;
 
                 case DialogButton_load: {
+                    logPrintf("g_dialog_entry(path(%s))\n", g_dialog_entry->path);
                     app_entry_load(g_dialog_entry);
                 } break;
 
@@ -220,6 +227,8 @@ static void dialog_button_event(lv_obj_t *obj, lv_event_t event) {
                     app_entry_set_star(g_dialog_entry, !g_dialog_entry->starred);
 
                     lv_obj_del(g_dialog_cover);
+                    g_dialog_cover = NULL;
+
                     del_buttons();
                     free_current_app_icons();
 
@@ -536,7 +545,7 @@ static void arrow_ready_cb(lv_anim_t *anim) {
     if (idx == 1)
         g_page_arrow_anim_running = false;
 
-    if ((idx == 1 && num_buttons() < MAX_LIST_ROWS) || (idx == 0 && g_curr_page == 0)) {
+    if ((idx == 1 && on_last_page()) || (idx == 0 && g_curr_page == 0)) {
         int del_idx;
         if (idx == 0)
             del_idx = 1;
@@ -604,7 +613,7 @@ static void change_page(int dir) {
             lv_anim_set_values(&g_page_arrow_anims[i], lv_obj_get_x(g_arrow_buttons[i]), (i == 0) ? LV_HOR_RES_MAX : -ARROW_BTN_W);
             lv_anim_set_time(&g_page_arrow_anims[i], (PAGE_WAIT * (MAX_LIST_ROWS - 1) + PAGE_TIME) / 2, 0);
 
-            if ((i == 0 && num_buttons() >= MAX_LIST_ROWS) || (i == 1 && g_curr_page != 0))
+            if ((i == 0 && !on_last_page()) || (i == 1 && g_curr_page != 0))
                 lv_anim_set_playback(&g_page_arrow_anims[i], 0);
         } else {
             draw_arrow_button(i);
@@ -667,13 +676,11 @@ static void draw_buttons() {
 
     lv_event_send(g_list_buttons[0], LV_EVENT_FOCUSED, NULL);
 
-    if (g_apps_ll_len > MAX_LIST_ROWS) {
+    if (!on_last_page())
         draw_arrow_button(0);
-    }
 
-    if (g_curr_page > 0) {
+    if (g_curr_page > 0)
         draw_arrow_button(1);
-    }
 
     for (int i = 0; i < MAX_LIST_ROWS; i++) {
         lv_anim_set_time(&g_page_list_anims[i], PAGE_TIME, PAGE_WAIT * i);
