@@ -125,6 +125,7 @@ static void focus_cb(lv_group_t *group, lv_style_t *style) { }
 
 static void exit_dialog() {
     lv_obj_del(g_dialog_cover);
+    g_dialog_cover = NULL;
 
     for (int i = 0; i < num_buttons(); i++) {
         lv_group_add_obj(keypad_group(), g_list_buttons[i]);
@@ -387,8 +388,10 @@ static void list_button_event(lv_obj_t *obj, lv_event_t event) {
         } break;
 
         case LV_EVENT_CLICKED: {
-            lv_group_focus_obj(obj);
-            draw_app_dialog();
+            if (g_dialog_cover == NULL) {
+                lv_group_focus_obj(obj);
+                draw_app_dialog();
+            }
         } break;
     }
 }
