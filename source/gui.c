@@ -62,6 +62,7 @@ static lv_style_t g_dark_opa_64_style;
 static lv_style_t g_white_48_style;
 static lv_style_t g_white_28_style;
 static lv_style_t g_white_16_style;
+static lv_style_t g_no_apps_mbox_style;
 
 static void change_page(int dir);
 static void draw_buttons();
@@ -528,9 +529,15 @@ static void arrow_ready_cb(lv_anim_t *anim) {
     if (idx == 1)
         g_page_arrow_anim_running = false;
 
-    if ((idx == 0 && num_buttons() < MAX_LIST_ROWS) || (idx == 1 && g_curr_page == 0)) {
-        lv_obj_del(g_arrow_buttons[idx]);
-        g_arrow_buttons[idx] = NULL;
+    if ((idx == 1 && num_buttons() < MAX_LIST_ROWS) || (idx == 0 && g_curr_page == 0)) {
+        int del_idx;
+        if (idx == 0)
+            del_idx = 1;
+        else
+            del_idx = 0;
+
+        lv_obj_del(g_arrow_buttons[del_idx]);
+        g_arrow_buttons[del_idx] = NULL;
         lv_group_focus_obj(g_list_buttons[0]);
     }
 
@@ -607,56 +614,69 @@ static void change_page(int dir) {
 }
 
 static void draw_buttons() {
-    if (num_buttons() > 0) {
-        lv_group_set_style_mod_cb(keypad_group(), focus_cb);
+    if (num_buttons() <= 0)
+        g_curr_page = 0;
 
-        g_list_buttons[0] = lv_imgbtn_create(lv_scr_act(), NULL);
-        lv_group_add_obj(keypad_group(), g_list_buttons[0]);
-        lv_obj_set_event_cb(g_list_buttons[0], list_button_event);
-        lv_imgbtn_set_src(g_list_buttons[0], LV_BTN_STATE_REL, &g_list_dscs[0]);
-        lv_imgbtn_set_src(g_list_buttons[0], LV_BTN_STATE_PR, &g_list_dscs[0]);
-        lv_obj_align(g_list_buttons[0], NULL, LV_ALIGN_IN_TOP_MID, 0, (LV_VER_RES_MAX - LIST_BTN_H * MAX_LIST_ROWS) / 2);
+    if (num_buttons() <= 0) {
+        lv_obj_t *mbox = lv_mbox_create(lv_scr_act(), NULL);
+        lv_mbox_set_style(mbox, LV_MBOX_STYLE_BG, &g_no_apps_mbox_style);
+        lv_obj_set_width(mbox, LIST_BTN_W);
 
-        g_list_covers[0] = lv_obj_create(g_list_buttons[0], NULL);
-        lv_obj_set_event_cb(g_list_covers[0], list_button_event);
-        lv_obj_set_style(g_list_covers[0], &g_transp_style);
-        lv_obj_set_size(g_list_covers[0], lv_obj_get_width(g_list_buttons[0]), lv_obj_get_height(g_list_buttons[0]));
+        lv_mbox_set_text(mbox, "You have no apps!\nPlease put your apps under \"" APP_DIR "\"");
 
-        app_entry_t *entry = get_app_for_button(0);
+        lv_obj_align(mbox, NULL, LV_ALIGN_CENTER, 0, 0);
+        
+        return;
+    }
+
+    lv_group_set_style_mod_cb(keypad_group(), focus_cb);
+
+    g_list_buttons[0] = lv_imgbtn_create(lv_scr_act(), NULL);
+    lv_group_add_obj(keypad_group(), g_list_buttons[0]);
+    lv_obj_set_event_cb(g_list_buttons[0], list_button_event);
+    lv_imgbtn_set_src(g_list_buttons[0], LV_BTN_STATE_REL, &g_list_dscs[0]);
+    lv_imgbtn_set_src(g_list_buttons[0], LV_BTN_STATE_PR, &g_list_dscs[0]);
+    lv_obj_align(g_list_buttons[0], NULL, LV_ALIGN_IN_TOP_MID, 0, (LV_VER_RES_MAX - LIST_BTN_H * MAX_LIST_ROWS) / 2);
+
+    g_list_covers[0] = lv_obj_create(g_list_buttons[0], NULL);
+    lv_obj_set_event_cb(g_list_covers[0], list_button_event);
+    lv_obj_set_style(g_list_covers[0], &g_transp_style);
+    lv_obj_set_size(g_list_covers[0], lv_obj_get_width(g_list_buttons[0]), lv_obj_get_height(g_list_buttons[0]));
+
+    app_entry_t *entry = get_app_for_button(0);
+    app_entry_init_icon(entry);
+    draw_entry_on_obj(g_list_covers[0], entry);
+
+    for (int i = 1; i < num_buttons(); i++) {
+        g_list_buttons[i] = lv_imgbtn_create(lv_scr_act(), g_list_buttons[i - 1]);
+        g_list_covers[i] = lv_obj_create(g_list_buttons[i], g_list_covers[i - 1]);
+
+        entry = lv_ll_get_next(&g_apps_ll, entry);
         app_entry_init_icon(entry);
-        draw_entry_on_obj(g_list_covers[0], entry);
+        draw_entry_on_obj(g_list_covers[i], entry);
 
-        for (int i = 1; i < num_buttons(); i++) {
-            g_list_buttons[i] = lv_imgbtn_create(lv_scr_act(), g_list_buttons[i - 1]);
-            g_list_covers[i] = lv_obj_create(g_list_buttons[i], g_list_covers[i - 1]);
+        lv_obj_align(g_list_buttons[i], g_list_buttons[i - 1], LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
+    }
 
-            entry = lv_ll_get_next(&g_apps_ll, entry);
-            app_entry_init_icon(entry);
-            draw_entry_on_obj(g_list_covers[i], entry);
+    lv_event_send(g_list_buttons[0], LV_EVENT_FOCUSED, NULL);
 
-            lv_obj_align(g_list_buttons[i], g_list_buttons[i - 1], LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
-        }
+    if (g_apps_ll_len > MAX_LIST_ROWS) {
+        draw_arrow_button(0);
+    }
 
-        lv_event_send(g_list_buttons[0], LV_EVENT_FOCUSED, NULL);
+    if (g_curr_page > 0) {
+        draw_arrow_button(1);
+    }
 
-        if (g_apps_ll_len > MAX_LIST_ROWS) {
-            draw_arrow_button(0);
-        }
+    for (int i = 0; i < MAX_LIST_ROWS; i++) {
+        lv_anim_set_time(&g_page_list_anims[i], PAGE_TIME, PAGE_WAIT * i);
+        lv_anim_set_path_cb(&g_page_list_anims[i], lv_anim_path_linear);
+        lv_anim_set_ready_cb(&g_page_list_anims[i], list_ready_cb);
+    }
 
-        if (g_curr_page > 0) {
-            draw_arrow_button(1);
-        }
-
-        for (int i = 0; i < MAX_LIST_ROWS; i++) {
-            lv_anim_set_time(&g_page_list_anims[i], PAGE_TIME, PAGE_WAIT * i);
-            lv_anim_set_path_cb(&g_page_list_anims[i], lv_anim_path_linear);
-            lv_anim_set_ready_cb(&g_page_list_anims[i], list_ready_cb);
-        }
-
-        for (int i = 0; i < 2; i++) {
-            lv_anim_set_path_cb(&g_page_arrow_anims[i], lv_anim_path_linear);
-            lv_anim_set_ready_cb(&g_page_arrow_anims[i], arrow_ready_cb);
-        }
+    for (int i = 0; i < 2; i++) {
+        lv_anim_set_path_cb(&g_page_arrow_anims[i], lv_anim_path_linear);
+        lv_anim_set_ready_cb(&g_page_arrow_anims[i], arrow_ready_cb);
     }
 }
 
@@ -698,6 +718,13 @@ void setup_menu() {
 
     lv_style_copy(&g_white_16_style, &lv_style_plain);
     g_white_16_style.text.color = LV_COLOR_WHITE;
+
+    lv_style_copy(&g_no_apps_mbox_style, &lv_style_plain);
+    g_no_apps_mbox_style.body.main_color = LV_COLOR_BLACK;
+    g_no_apps_mbox_style.body.grad_color = LV_COLOR_BLACK;
+    g_no_apps_mbox_style.body.opa = 128;
+    g_no_apps_mbox_style.text.color = LV_COLOR_WHITE;
+    g_no_apps_mbox_style.text.font = &lv_font_roboto_48;
 
     u8 *data;
     size_t size;
