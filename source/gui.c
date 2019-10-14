@@ -196,6 +196,18 @@ static void dialog_button_event(lv_obj_t *obj, lv_event_t event) {
             switch (btn_idx) {
                 case DialogButton_delete: {
                     app_entry_delete(g_dialog_entry);
+
+                    lv_obj_del(g_dialog_cover);
+                    del_buttons();
+                    free_current_app_icons();
+
+                    lv_ll_clear(&g_apps_ll);
+                    gen_apps_list();
+
+                    if (num_buttons() <= 0)
+                        g_curr_page--;
+
+                    draw_buttons();
                 } break;
 
                 case DialogButton_star: {
@@ -627,7 +639,7 @@ static void draw_buttons() {
 
         lv_event_send(g_list_buttons[0], LV_EVENT_FOCUSED, NULL);
 
-        if (num_buttons() >= MAX_LIST_ROWS) {
+        if (g_apps_ll_len > MAX_LIST_ROWS) {
             draw_arrow_button(0);
         }
 
