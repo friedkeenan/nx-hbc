@@ -36,5 +36,7 @@ lv_res_t app_entry_set_star(app_entry_t *entry, bool star);
 
 lv_res_t app_entry_delete(app_entry_t *entry);
 
+lv_res_t app_entry_load(app_entry_t *entry);
+
 lv_res_t app_entry_ll_ins(lv_ll_t *ll, char *path);
 lv_res_t app_entry_ll_init(lv_ll_t *ll);

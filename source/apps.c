@@ -10,6 +10,7 @@
 #include "apps.h"
 #include "log.h"
 #include "util.h"
+#include "main.h"
 
 lv_res_t app_entry_init_icon(app_entry_t *entry) {
     FILE *fp = fopen(entry->path, "rb");
@@ -155,6 +156,15 @@ lv_res_t app_entry_delete(app_entry_t *entry) {
         if (rmdir(del_path) != 0)
             return LV_RES_INV;
     }
+
+    return LV_RES_OK;
+}
+
+lv_res_t app_entry_load(app_entry_t *entry) {
+    if (R_FAILED(envSetNextLoad(entry->path, entry->path)))
+        return LV_RES_INV;
+
+    stop_main_loop();
 
     return LV_RES_OK;
 }

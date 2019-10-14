@@ -211,6 +211,10 @@ static void dialog_button_event(lv_obj_t *obj, lv_event_t event) {
                     draw_buttons();
                 } break;
 
+                case DialogButton_load: {
+                    app_entry_load(g_dialog_entry);
+                } break;
+
                 case DialogButton_star: {
                     app_entry_set_star(g_dialog_entry, !g_dialog_entry->starred);
 

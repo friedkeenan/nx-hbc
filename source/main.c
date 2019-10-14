@@ -8,6 +8,12 @@
 #include "gui.h"
 #include "apps.h"
 
+static bool g_should_loop = true;
+
+void stop_main_loop() {
+    g_should_loop = false;
+}
+
 int main(int argc, char **argv) {
     appletLockExit();
 
@@ -26,7 +32,7 @@ int main(int argc, char **argv) {
     setup_menu();
     setup_misc();
 
-    while (appletMainLoop()) {
+    while (appletMainLoop() && g_should_loop) {
         hidScanInput();
         u64 kDown = hidKeysDown(CONTROLLER_P1_AUTO);
 
