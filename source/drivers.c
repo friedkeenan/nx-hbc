@@ -61,7 +61,11 @@ static bool keypad_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
 
     data->state = LV_INDEV_STATE_PR;
 
-    if (pressed & KEY_LEFT)
+    if (pressed & KEY_A)
+        data->key = LV_KEY_ENTER;
+    else if (pressed & KEY_B)
+        data->key = LV_KEY_ESC;
+    else if (pressed & KEY_LEFT)
         data->key = LV_KEY_LEFT;
     else if (pressed & KEY_RIGHT)
         data->key = LV_KEY_RIGHT;
@@ -69,10 +73,6 @@ static bool keypad_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
         data->key = LV_KEY_DOWN;
     else if (pressed & KEY_UP)
         data->key = LV_KEY_UP;
-    else if (pressed & KEY_A)
-        data->key = LV_KEY_ENTER;
-    else if (pressed & KEY_B)
-        data->key = LV_KEY_ESC;
     else
         data->state = LV_INDEV_STATE_REL;
 
