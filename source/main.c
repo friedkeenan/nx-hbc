@@ -34,9 +34,9 @@ int main(int argc, char **argv) {
 
     while (appletMainLoop() && g_should_loop) {
         hidScanInput();
-        u64 kDown = hidKeysDown(CONTROLLER_P1_AUTO);
+        u64 kHeld = hidKeysHeld(CONTROLLER_P1_AUTO);
 
-        if (kDown & KEY_PLUS)
+        if (kHeld & KEY_PLUS)
             break;
 
         lv_task_handler();

@@ -80,6 +80,10 @@ LIBDIRS	:= $(PORTLIBS) $(LIBNX)
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 #---------------------------------------------------------------------------------
 
+export ROMFSABS	:=	$(CURDIR)/$(ROMFS)
+export ASSETS	:=	$(CURDIR)/assets
+export RESOURCES	:=	$(CURDIR)/resources
+
 export OUTPUT	:=	$(CURDIR)/$(TARGET)
 export TOPDIR	:=	$(CURDIR)
 
@@ -166,8 +170,6 @@ endif
 all: $(BUILD)
 
 $(BUILD):
-	@mkdir -p $(ROMFS)
-	@zip -rj $(ROMFS)/assets.zip assets
 	@[ -d $@ ] || mkdir -p $@
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
@@ -175,9 +177,9 @@ $(BUILD):
 clean:
 	@echo clean ...
 ifeq ($(strip $(APP_JSON)),)
-	@rm -fr $(BUILD) $(TARGET).nro $(TARGET).nacp $(TARGET).elf
+	@rm -fr $(BUILD) $(TARGET).nro $(TARGET).nacp $(TARGET).elf $(ASSETS) $(ROMFSABS)
 else
-	@rm -fr $(BUILD) $(TARGET).nsp $(TARGET).nso $(TARGET).npdm $(TARGET).elf
+	@rm -fr $(BUILD) $(TARGET).nsp $(TARGET).nso $(TARGET).npdm $(TARGET).elf $(ASSETS) $(ROMFSABS)
 endif
 
 
@@ -195,9 +197,9 @@ ifeq ($(strip $(APP_JSON)),)
 all	:	$(OUTPUT).nro
 
 ifeq ($(strip $(NO_NACP)),)
-$(OUTPUT).nro	:	$(OUTPUT).elf $(OUTPUT).nacp
+$(OUTPUT).nro	:	$(OUTPUT).elf $(OUTPUT).nacp $(ROMFSABS)/assets.zip
 else
-$(OUTPUT).nro	:	$(OUTPUT).elf
+$(OUTPUT).nro	:	$(OUTPUT).elf $(ROMFSABS)/assets.zip
 endif
 
 else
@@ -213,6 +215,17 @@ endif
 $(OUTPUT).elf	:	$(OFILES)
 
 $(OFILES_SRC)	: $(HFILES_BIN)
+
+$(ROMFSABS):
+	@mkdir -p $@
+
+$(ASSETS)	:	$(RESOURCES)
+	@rm -rf $@
+	@python3 $(TOPDIR)/gen_assets.py $(RESOURCES) $(ASSETS)
+
+$(ROMFSABS)/assets.zip	:	$(ROMFSABS) $(ASSETS)
+	@rm -f $@
+	@zip -rj $@ $(ASSETS)
 
 #---------------------------------------------------------------------------------
 # you need a rule like this for each extension you use as binary data

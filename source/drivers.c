@@ -43,6 +43,8 @@ static void flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *colo
 }
 
 static bool touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
+    hidScanInput();
+
     if (hidTouchCount()) {
         hidTouchRead(&g_touch_pos, 0);
         data->state = LV_INDEV_STATE_PR;
@@ -57,6 +59,8 @@ static bool touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
 }
 
 static bool keypad_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
+    hidScanInput();
+
     u64 pressed = hidKeysHeld(CONTROLLER_P1_AUTO);
 
     data->state = LV_INDEV_STATE_PR;
@@ -87,6 +91,8 @@ static void center_gyro(SixAxisSensorValues sixaxis) {
 }
 
 static bool gyro_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
+    hidScanInput();
+
     // Scan for input changes 
     SixAxisSensorValues sixaxis;
     hidSixAxisSensorValuesRead(&sixaxis, CONTROLLER_P1_AUTO, 1);
@@ -148,7 +154,7 @@ static bool gyro_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
 static void handheld_changed_task(lv_task_t * t) {
     if (hidGetHandheldMode()) {
         g_gyro_indev->proc.disabled = true;
-        g_gyro_indev->proc.disabled = false;
+        g_keypad_indev->proc.disabled = false;
 
         if (g_clear_pointer_canvas) {
             g_clear_pointer_canvas = false;
