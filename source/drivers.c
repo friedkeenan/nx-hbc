@@ -15,7 +15,7 @@ static touchPosition g_touch_pos;
 static lv_indev_t *g_keypad_indev;
 static lv_group_t *g_keypad_group;
 
-static u32 handles[4]; // Sixaxis handles
+static u32 g_sixaxis_handles[4]; // Sixaxis handles
 // We actually only need to keep track of a specific set of data so we dont need all sixaxis values
 static HidVector g_gyro_center;
 static lv_obj_t * g_pointer_canvas;
@@ -242,13 +242,13 @@ void driversInitialize() {
     };
     
     // Get handles for sixaxis
-    hidGetSixAxisSensorHandles(&handles[0], 2, CONTROLLER_PLAYER_1, TYPE_JOYCON_PAIR);
-    hidGetSixAxisSensorHandles(&handles[2], 1, CONTROLLER_PLAYER_1, TYPE_PROCONTROLLER);
-    hidGetSixAxisSensorHandles(&handles[3], 1, CONTROLLER_HANDHELD, TYPE_HANDHELD);
-    hidStartSixAxisSensor(handles[0]);
-    hidStartSixAxisSensor(handles[1]);
-    hidStartSixAxisSensor(handles[2]);
-    hidStartSixAxisSensor(handles[3]);
+    hidGetSixAxisSensorHandles(&g_sixaxis_handles[0], 2, CONTROLLER_PLAYER_1, TYPE_JOYCON_PAIR);
+    hidGetSixAxisSensorHandles(&g_sixaxis_handles[2], 1, CONTROLLER_PLAYER_1, TYPE_PROCONTROLLER);
+    hidGetSixAxisSensorHandles(&g_sixaxis_handles[3], 1, CONTROLLER_HANDHELD, TYPE_HANDHELD);
+    hidStartSixAxisSensor(g_sixaxis_handles[0]);
+    hidStartSixAxisSensor(g_sixaxis_handles[1]);
+    hidStartSixAxisSensor(g_sixaxis_handles[2]);
+    hidStartSixAxisSensor(g_sixaxis_handles[3]);
     
     // Ideally scan for input here and set the zero
     g_gyro_center.x = 0;
@@ -261,10 +261,10 @@ void driversExit() {
 
     framebufferClose(&g_framebuffer);
     
-    hidStopSixAxisSensor(handles[0]);
-    hidStopSixAxisSensor(handles[1]);
-    hidStopSixAxisSensor(handles[2]);
-    hidStopSixAxisSensor(handles[3]);
+    hidStopSixAxisSensor(g_sixaxis_handles[0]);
+    hidStopSixAxisSensor(g_sixaxis_handles[1]);
+    hidStopSixAxisSensor(g_sixaxis_handles[2]);
+    hidStopSixAxisSensor(g_sixaxis_handles[3]);
 }
 
 lv_group_t *keypad_group() {
