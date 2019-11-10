@@ -12,6 +12,18 @@
 #include "util.h"
 #include "main.h"
 
+void app_entry_init_base(app_entry_t *entry, char *path) {
+    strcpy(entry->path, path);
+
+    strcpy(entry->args, "\"");
+    strcat(entry->args, path);
+    strcat(entry->args, "\"");
+
+    char star_path[PATH_MAX + 1];
+    app_entry_get_star_path(entry, star_path);
+    entry->starred = is_file(star_path);
+}
+
 lv_res_t app_entry_init_icon(app_entry_t *entry) {
     FILE *fp = fopen(entry->path, "rb");
     if (fp == NULL) {
@@ -118,7 +130,7 @@ void app_entry_get_star_path(app_entry_t *entry, char *out_path) {
 }
 
 lv_res_t app_entry_set_star(app_entry_t *entry, bool star) {
-    char star_path[PATH_MAX];
+    char star_path[PATH_MAX + 1];
     app_entry_get_star_path(entry, star_path);
 
     if (star) {
@@ -145,7 +157,7 @@ lv_res_t app_entry_delete(app_entry_t *entry) {
         if (remove(entry->path) != 0)
             return LV_RES_INV;
     } else {
-        char del_path[PATH_MAX];
+        char del_path[PATH_MAX + 1];
         strcpy(del_path, entry->path);
 
         *(get_name(del_path)) = '\0';
@@ -160,9 +172,14 @@ lv_res_t app_entry_delete(app_entry_t *entry) {
     return LV_RES_OK;
 }
 
+void app_entry_add_arg(app_entry_t *entry, char *arg) {
+    strcat(entry->args, " \"");
+    strcat(entry->args, arg);
+    strcat(entry->args, "\"");
+}
+
 lv_res_t app_entry_load(app_entry_t *entry) {
-    logPrintf("entry(path(%s))\n", entry->path);
-    if (R_FAILED(envSetNextLoad(entry->path, entry->path)))
+    if (R_FAILED(envSetNextLoad(entry->path, entry->args)))
         return LV_RES_INV;
 
     stop_main_loop();
@@ -172,11 +189,7 @@ lv_res_t app_entry_load(app_entry_t *entry) {
 
 lv_res_t app_entry_ll_ins(lv_ll_t *ll, char *path) {
     app_entry_t *entry = lv_ll_ins_tail(ll);
-    strcpy(entry->path, path);
-    
-    char star_path[PATH_MAX];
-    app_entry_get_star_path(entry, star_path);
-    entry->starred = is_file(star_path);
+    app_entry_init_base(entry, path);
 
     lv_res_t res = app_entry_init_info(entry);
     if (res != LV_RES_OK) {
@@ -207,7 +220,7 @@ lv_res_t app_entry_ll_init(lv_ll_t *ll) {
 
     struct dirent *ep;
     while ((ep = readdir(app_dp))) {
-        char tmp_path[PATH_MAX];
+        char tmp_path[PATH_MAX + 1];
         tmp_path[0] = '\0';
         snprintf(tmp_path, sizeof(tmp_path), "%s/%s", APP_DIR, ep->d_name);
 
@@ -217,7 +230,7 @@ lv_res_t app_entry_ll_init(lv_ll_t *ll) {
                 continue;
 
             while ((ep = readdir(dp))) {
-                char path[PATH_MAX];
+                char path[PATH_MAX + 1];
                 strcpy(path, tmp_path);
                 strcat(path, "/");
                 strcat(path, ep->d_name);

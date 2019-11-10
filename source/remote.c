@@ -37,6 +37,7 @@
  */
 
 #include <stdio.h>
+#include <limits.h>
 #include <zlib.h>
 #include <lvgl/lvgl.h>
 
@@ -64,7 +65,7 @@ static size_t sendall(remote_loader_t *r, const void *buf, size_t len) {
     return len;
 }
 
-static int decompress(remote_loader_t *r, FILE *fp, size_t file_size) {
+static int decompress(remote_loader_t *r, FILE *fp) {
     int ret;
     z_stream strm;
     u32 chunk_size = 0;
@@ -124,4 +125,77 @@ static int decompress(remote_loader_t *r, FILE *fp, size_t file_size) {
 
     inflateEnd(&strm);
     return Z_OK;
+}
+
+static int load_app(remote_loader_t *r) {
+    int name_len, file_len;
+    char file_name[PATH_MAX + 1];
+
+    recvall(r, &name_len, sizeof(name_len));
+
+    if (name_len >= sizeof(file_name) - 1)
+        return -1;
+
+    recvall(r, file_name, name_len);
+    file_name[name_len] = '\0';
+
+    recvall(r, &file_len, sizeof(file_len));
+
+    app_entry_t entry;
+
+    strcpy(entry.path, APP_DIR);
+    strcat(entry.path, "/");
+    strcat(entry.path, file_name);
+    app_entry_init_base(&entry, entry.path);
+
+    if (r->add_args_cb != NULL)
+        r->add_args_cb(r, &entry); // For example the socket loader would add the _NXLINK_ arg
+
+    int response = 0;
+
+    FILE *fp = fopen(entry.path, "wb");
+    if (fp == NULL) {
+        response = -1;
+    } else {
+        if (ftruncate(fileno(fp), file_len) < 0) {
+            response = -2;
+            fclose(fp);
+        }
+    }
+
+    sendall(r, &response, sizeof(response));
+
+    if (response == 0) {
+        if (decompress(r, fp) == Z_OK) {
+            sendall(r, &response, sizeof(response));
+
+            int args_len;
+            recvall(r, &args_len, sizeof(args_len));
+
+            if (args_len > APP_ARGS_LEN)
+                args_len = APP_ARGS_LEN;
+
+            char args_buf[args_len];
+            recvall(r, args_buf, args_len);
+
+            char *args_buf_tmp = args_buf;
+            char *args_buf_end = args_buf + args_len;
+
+            while (args_buf_tmp < args_buf_end) {
+                app_entry_add_arg(&entry, args_buf_tmp);
+
+                args_buf_tmp += strlen(args_buf);
+            }
+        } else {
+            response = -1;
+        }
+
+        fflush(fp);
+        fclose(fp);
+
+        if (response < 0)
+            remove(entry.path);
+    }
+
+    return response;
 }

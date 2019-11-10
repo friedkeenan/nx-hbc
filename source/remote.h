@@ -39,6 +39,7 @@
 #pragma once
 
 #include <lvgl/lvgl.h>
+#include <arpa/inet.h>
 #include <switch.h>
 
 #include "apps.h"
@@ -46,8 +47,6 @@
 #define ZLIB_CHUNK (16 * 1024)
 
 typedef struct remote_loader {
-    app_entry_t *entry;
-
     u8 in_buf[ZLIB_CHUNK];
     u8 out_buf[ZLIB_CHUNK];
 
@@ -57,5 +56,7 @@ typedef struct remote_loader {
     size_t (*recv_cb)(struct remote_loader *r, void *buf, size_t len);
     size_t (*send_cb)(struct remote_loader *r, const void *buf, size_t len);
 
-    int sockfd, connfd;
+    lv_res_t (*add_args_cb)(struct remote_loader *r, app_entry_t *entry);
+
+    void *custom_data;
 } remote_loader_t;
