@@ -38,6 +38,7 @@
 
 #include <stdio.h>
 #include <limits.h>
+#include <threads.h>
 #include <zlib.h>
 #include <lvgl/lvgl.h>
 
@@ -81,11 +82,7 @@ static int decompress(remote_loader_t *r, FILE *fp) {
         return ret;
 
     do {
-        size_t len = recvall(r, &chunk_size, sizeof(chunk_size));
-        if (len != sizeof(chunk_size)) {
-            inflateEnd(&strm);
-            return Z_DATA_ERROR;
-        }
+        recvall(r, &chunk_size, sizeof(chunk_size));
 
         if (chunk_size > sizeof(r->in_buf)) {
             inflateEnd(&strm);
@@ -120,6 +117,10 @@ static int decompress(remote_loader_t *r, FILE *fp) {
                 inflateEnd(&strm);
                 return Z_ERRNO;
             }
+
+            mtx_lock(&r->mtx);
+            r->current += read_len;
+            mtx_unlock(&r->mtx);
         } while (strm.avail_out == 0);
     } while (ret != Z_STREAM_END);
 
@@ -127,7 +128,7 @@ static int decompress(remote_loader_t *r, FILE *fp) {
     return Z_OK;
 }
 
-static int load_app(remote_loader_t *r) {
+static int recv_app(remote_loader_t *r) {
     int name_len, file_len;
     char file_name[PATH_MAX + 1];
 
@@ -140,20 +141,21 @@ static int load_app(remote_loader_t *r) {
     file_name[name_len] = '\0';
 
     recvall(r, &file_len, sizeof(file_len));
+    mtx_lock(&r->mtx);
+    r->total = file_len;
+    mtx_unlock(&r->mtx);
 
-    app_entry_t entry;
-
-    strcpy(entry.path, APP_DIR);
-    strcat(entry.path, "/");
-    strcat(entry.path, file_name);
-    app_entry_init_base(&entry, entry.path);
+    strcpy(r->entry.path, APP_DIR);
+    strcat(r->entry.path, "/");
+    strcat(r->entry.path, file_name);
+    app_entry_init_base(&r->entry, r->entry.path);
 
     if (r->add_args_cb != NULL)
-        r->add_args_cb(r, &entry); // For example the socket loader would add the _NXLINK_ arg
+        r->add_args_cb(r); // For example the socket loader would add the _NXLINK_ arg
 
     int response = 0;
 
-    FILE *fp = fopen(entry.path, "wb");
+    FILE *fp = fopen(r->entry.path, "wb");
     if (fp == NULL) {
         response = -1;
     } else {
@@ -182,7 +184,7 @@ static int load_app(remote_loader_t *r) {
             char *args_buf_end = args_buf + args_len;
 
             while (args_buf_tmp < args_buf_end) {
-                app_entry_add_arg(&entry, args_buf_tmp);
+                app_entry_add_arg(&r->entry, args_buf_tmp);
 
                 args_buf_tmp += strlen(args_buf);
             }
@@ -194,8 +196,82 @@ static int load_app(remote_loader_t *r) {
         fclose(fp);
 
         if (response < 0)
-            remove(entry.path);
+            remove(r->entry.path);
     }
 
     return response;
+}
+
+bool remote_loader_get_activated(remote_loader_t *r) {
+    bool flag;
+
+    mtx_lock(&r->mtx);
+    flag = r->flags & RemoteLoaderFlag_activated;
+    mtx_unlock(&r->mtx);
+
+    return flag;
+}
+
+bool remote_loader_get_exit(remote_loader_t *r) {
+    bool flag;
+
+    mtx_lock(&r->mtx);
+    flag = r->flags & RemoteLoaderFlag_exit;
+    mtx_unlock(&r->mtx);
+
+    return flag;
+}
+
+void remote_loader_set_exit(remote_loader_t *r) {
+    mtx_lock(&r->mtx);
+    r->flags |= RemoteLoaderFlag_exit;
+    mtx_unlock(&r->mtx);
+}
+
+static void remote_loader_set_load(remote_loader_t *r) {
+    mtx_lock(&r->mtx);
+    r->flags |= RemoteLoaderFlag_load;
+    mtx_unlock(&r->mtx);
+}
+
+static lv_res_t remote_loader_init(remote_loader_t *r) {
+    if (mtx_init(&r->mtx, mtx_plain) != thrd_success)
+        return LV_RES_INV;
+
+    lv_res_t res = LV_RES_OK;
+
+    if (r->init_cb != NULL)
+        res = r->init_cb(r);
+
+    if (res != LV_RES_OK)
+        mtx_destroy(&r->mtx);
+
+    r->flags |= RemoteLoaderFlag_activated;
+
+    return res;
+}
+
+static void remote_loader_exit(remote_loader_t *r) {
+    mtx_destroy(&r->mtx);
+
+    if (r->exit_cb != NULL)
+        r->exit_cb(r);
+
+    r->flags &= RemoteLoaderFlag_load;
+}
+
+void remote_loader_thread(remote_loader_t *r) {
+    remote_loader_init(r);
+
+    struct timespec loop_sleep = {.tv_nsec = 100000000};
+
+    while ((r->loop_cb(r) != LV_RES_OK) && !remote_loader_get_exit(r))
+        thrd_sleep(&loop_sleep, NULL);
+
+    if (!remote_loader_get_exit(r)) {
+        if (recv_app(r) == 0)
+            remote_loader_set_load(r);
+    }
+
+    remote_loader_exit(r);
 }
