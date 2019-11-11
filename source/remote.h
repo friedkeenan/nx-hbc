@@ -63,19 +63,19 @@ typedef struct remote_loader {
     u8 in_buf[ZLIB_CHUNK];
     u8 out_buf[ZLIB_CHUNK];
 
+    lv_res_t (*init_cb)(struct remote_loader *r);
+    void (*exit_cb)(struct remote_loader *r);
+
     /*
      * Should return LV_RES_INV until it's ready to
      * receive the app, and then return LV_RES_OK.
      */
     lv_res_t (*loop_cb)(struct remote_loader *r);
 
-    lv_res_t (*init_cb)(struct remote_loader *r);
-    void (*exit_cb)(struct remote_loader *r);
+    ssize_t (*recv_cb)(struct remote_loader *r, void *buf, size_t len);
+    ssize_t (*send_cb)(struct remote_loader *r, const void *buf, size_t len);
 
-    size_t (*recv_cb)(struct remote_loader *r, void *buf, size_t len);
-    size_t (*send_cb)(struct remote_loader *r, const void *buf, size_t len);
-
-    lv_res_t (*add_args_cb)(struct remote_loader *r);
+    void (*add_args_cb)(struct remote_loader *r);
 
     void *custom_data;
 } remote_loader_t;

@@ -44,9 +44,11 @@
 
 #include "remote.h"
 
-static size_t recvall(remote_loader_t *r, void *buf, size_t len) {
+static ssize_t recvall(remote_loader_t *r, void *buf, size_t len) {
     while (len) {
-        size_t tmp_len = r->recv_cb(r, buf, len);
+        ssize_t tmp_len = r->recv_cb(r, buf, len);
+        if (tmp_len <= 0)
+            return tmp_len;
 
         len -= tmp_len;
         buf += tmp_len;
@@ -55,9 +57,11 @@ static size_t recvall(remote_loader_t *r, void *buf, size_t len) {
     return len;
 }
 
-static size_t sendall(remote_loader_t *r, const void *buf, size_t len) {
+static ssize_t sendall(remote_loader_t *r, const void *buf, size_t len) {
     while (len) {
-        size_t tmp_len = r->send_cb(r, buf, len);
+        ssize_t tmp_len = r->send_cb(r, buf, len);
+        if (tmp_len <= 0)
+            return tmp_len;
 
         len -= tmp_len;
         buf += tmp_len;
@@ -82,7 +86,16 @@ static int decompress(remote_loader_t *r, FILE *fp) {
         return ret;
 
     do {
-        recvall(r, &chunk_size, sizeof(chunk_size));
+        if (remote_loader_get_exit(r)) {
+            inflateEnd(&strm);
+            return Z_DATA_ERROR;
+        }
+
+        ssize_t len = recvall(r, &chunk_size, sizeof(chunk_size));
+        if (len != sizeof(chunk_size)) {
+            inflateEnd(&strm);
+            return Z_DATA_ERROR;
+        }
 
         if (chunk_size > sizeof(r->in_buf)) {
             inflateEnd(&strm);
@@ -113,7 +126,7 @@ static int decompress(remote_loader_t *r, FILE *fp) {
             }
 
             size_t read_len = ZLIB_CHUNK - strm.avail_out;
-            if (fwrite(r->out_buf, read_len, 1, fp) != 1) {
+            if (fwrite(r->out_buf, read_len, 1, fp) != 1 || ferror(fp)) {
                 inflateEnd(&strm);
                 return Z_ERRNO;
             }
@@ -132,18 +145,28 @@ static int recv_app(remote_loader_t *r) {
     int name_len, file_len;
     char file_name[PATH_MAX + 1];
 
-    recvall(r, &name_len, sizeof(name_len));
+    ssize_t len = recvall(r, &name_len, sizeof(name_len));
+    if (len != sizeof(name_len))
+        return -1;
 
     if (name_len >= sizeof(file_name) - 1)
         return -1;
 
-    recvall(r, file_name, name_len);
+    len = recvall(r, file_name, name_len);
+    if (len != name_len)
+        return -1;
+
     file_name[name_len] = '\0';
 
-    recvall(r, &file_len, sizeof(file_len));
+    len = recvall(r, &file_len, sizeof(file_len));
+    if (len != sizeof(file_len))
+        return -1;
+
     mtx_lock(&r->mtx);
     r->total = file_len;
     mtx_unlock(&r->mtx);
+
+    // Does the path need to be sanitized?
 
     strcpy(r->entry.path, APP_DIR);
     strcat(r->entry.path, "/");
@@ -169,24 +192,37 @@ static int recv_app(remote_loader_t *r) {
 
     if (response == 0) {
         if (decompress(r, fp) == Z_OK) {
-            sendall(r, &response, sizeof(response));
+            len = sendall(r, &response, sizeof(response));
+            if (len != sizeof(response))
+                response = -1;
 
             int args_len;
-            recvall(r, &args_len, sizeof(args_len));
 
-            if (args_len > APP_ARGS_LEN)
-                args_len = APP_ARGS_LEN;
+            if (response == 0) {
+                len = recvall(r, &args_len, sizeof(args_len));
+                if (len != sizeof(args_len))
+                    response = -1;
+            }
 
-            char args_buf[args_len];
-            recvall(r, args_buf, args_len);
+            if (response == 0) {
+                if (args_len > APP_ARGS_LEN)
+                    args_len = APP_ARGS_LEN;
 
-            char *args_buf_tmp = args_buf;
-            char *args_buf_end = args_buf + args_len;
+                char args_buf[args_len];
+                len = recvall(r, args_buf, args_len);
+                if (len != args_len)
+                    response = -1;
 
-            while (args_buf_tmp < args_buf_end) {
-                app_entry_add_arg(&r->entry, args_buf_tmp);
+                if (response == 0) {
+                    char *args_buf_tmp = args_buf;
+                    char *args_buf_end = args_buf + args_len;
 
-                args_buf_tmp += strlen(args_buf);
+                    while (args_buf_tmp < args_buf_end) {
+                        app_entry_add_arg(&r->entry, args_buf_tmp);
+
+                        args_buf_tmp += strlen(args_buf);
+                    }
+                }
             }
         } else {
             response = -1;
@@ -210,6 +246,12 @@ bool remote_loader_get_activated(remote_loader_t *r) {
     mtx_unlock(&r->mtx);
 
     return flag;
+}
+
+static void remote_loader_set_activated(remote_loader_t *r) {
+    mtx_lock(&r->mtx);
+    r->flags |= RemoteLoaderFlag_activated;
+    mtx_unlock(&r->mtx);
 }
 
 bool remote_loader_get_exit(remote_loader_t *r) {
@@ -246,8 +288,6 @@ static lv_res_t remote_loader_init(remote_loader_t *r) {
     if (res != LV_RES_OK)
         mtx_destroy(&r->mtx);
 
-    r->flags |= RemoteLoaderFlag_activated;
-
     return res;
 }
 
@@ -261,7 +301,8 @@ static void remote_loader_exit(remote_loader_t *r) {
 }
 
 void remote_loader_thread(remote_loader_t *r) {
-    remote_loader_init(r);
+    if (remote_loader_init(r) != LV_RES_OK)
+        return;
 
     struct timespec loop_sleep = {.tv_nsec = 100000000};
 
@@ -269,6 +310,7 @@ void remote_loader_thread(remote_loader_t *r) {
         thrd_sleep(&loop_sleep, NULL);
 
     if (!remote_loader_get_exit(r)) {
+        remote_loader_set_activated(r);
         if (recv_app(r) == 0)
             remote_loader_set_load(r);
     }
