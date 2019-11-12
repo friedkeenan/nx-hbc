@@ -7,6 +7,10 @@ from pathlib import Path
 def asset_to_bin(path, new_path):
     im = Image.open(path).convert("RGBA")
 
+    # Convert to BGRA
+    r, g, b, a = im.split()
+    im = Image.merge("RGBA", (b, g, r, a))
+
     with new_path.open("wb") as f:
         f.write(im.tobytes())
 

@@ -11,6 +11,7 @@
 #include "apps.h"
 #include "remote.h"
 #include "remote_net.h"
+#include "util.h"
 
 enum {
     DialogButton_min,
@@ -64,6 +65,7 @@ static thrd_t g_remote_thread;
 static remote_loader_t *g_remote_loader;
 static lv_img_dsc_t g_remote_progress_img;
 static lv_obj_t *g_remote_bar = NULL;
+static lv_obj_t *g_remote_name = NULL;
 static lv_obj_t *g_remote_percent = NULL;
 
 static lv_style_t g_transp_style;
@@ -775,8 +777,8 @@ void setup_menu() {
     g_no_apps_mbox_style.text.font = &lv_font_roboto_48;
 
     lv_style_copy(&g_blue_body_style, &lv_style_plain);
-    g_blue_body_style.body.main_color = RGB_MAKE(0xc8, 0xe1, 0xed);
-    g_blue_body_style.body.grad_color = RGB_MAKE(0x46, 0xc1, 0xff);
+    g_blue_body_style.body.main_color = lv_color_hex(0xc8e1ed);
+    g_blue_body_style.body.grad_color = lv_color_hex(0x46c1ff);
 
     u8 *data;
     size_t size;
@@ -872,10 +874,18 @@ static void remote_progress_task(lv_task_t *task) {
             g_remote_percent = lv_label_create(img, NULL);
             lv_obj_set_style(g_remote_percent, &g_white_22_style);
             lv_obj_align(g_remote_percent, img, LV_ALIGN_IN_BOTTOM_RIGHT, -10, -10);
+
+            g_remote_name = lv_label_create(img, g_remote_percent);
+            lv_obj_align(g_remote_name, NULL, LV_ALIGN_IN_TOP_LEFT, 60, 20);
         }
 
         s16 progress = remote_loader_get_progress(g_remote_loader);
         lv_bar_set_value(g_remote_bar, progress, LV_ANIM_OFF);
+        
+        char receiving[PATH_MAX + 1 + strlen("Receiving: ")];
+        receiving[0] = '\0';
+        sprintf(receiving, "Receiving: %s", get_name(g_remote_loader->entry.path));
+        lv_label_set_text(g_remote_name, receiving);
 
         char percent[8];
         percent[0] = '\0';

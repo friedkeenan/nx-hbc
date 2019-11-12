@@ -173,7 +173,7 @@ static void handheld_changed_task(lv_task_t * t) {
 
 void driversInitialize() {
     NWindow *win = nwindowGetDefault();
-    framebufferCreate(&g_framebuffer, win, LV_HOR_RES_MAX, LV_VER_RES_MAX, PIXEL_FORMAT_RGBA_8888, 2);
+    framebufferCreate(&g_framebuffer, win, LV_HOR_RES_MAX, LV_VER_RES_MAX, PIXEL_FORMAT_BGRA_8888, 2);
     framebufferMakeLinear(&g_framebuffer);
 
     lv_disp_buf_init(&g_disp_buf, g_buffer, NULL, LV_HOR_RES_MAX * LV_VER_RES_MAX);

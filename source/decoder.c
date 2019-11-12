@@ -19,9 +19,9 @@ static void downscale_img(u8 *src, u8 *dst, u32 src_w, u32 src_h, u32 dst_w, u32
     float x_scale = (float) src_w / (float) dst_w;
     float y_scale = (float) src_h / (float) dst_h;
 
+    u8 b[4];
     u8 r[4];
     u8 g[4];
-    u8 b[4];
     u8 a[4];
     float f[4];
     int w[4];
@@ -34,27 +34,27 @@ static void downscale_img(u8 *src, u8 *dst, u32 src_w, u32 src_h, u32 dst_w, u32
             int pixel_y = src_y;
 
             int pos = pos_from_coord(pixel_x, pixel_y, src_w);
-            r[0] = src[pos];
+            b[0] = src[pos];
             g[0] = src[pos + 1];
-            b[0] = src[pos + 2];
+            r[0] = src[pos + 2];
             a[0] = src[pos + 3];
 
             pos = pos_from_coord(pixel_x + 1, pixel_y, src_w);
-            r[1] = src[pos];
+            b[1] = src[pos];
             g[1] = src[pos + 1];
-            b[1] = src[pos + 2];
+            r[1] = src[pos + 2];
             a[1] = src[pos + 3];
 
             pos = pos_from_coord(pixel_x, pixel_y + 1, src_w);
-            r[2] = src[pos];
+            b[2] = src[pos];
             g[2] = src[pos + 1];
-            b[2] = src[pos + 2];
+            r[2] = src[pos + 2];
             a[2] = src[pos + 3];
 
             pos = pos_from_coord(pixel_x + 1, pixel_y + 1, src_w);
-            r[3] = src[pos];
+            b[3] = src[pos];
             g[3] = src[pos + 1];
-            b[3] = src[pos + 2];
+            r[3] = src[pos + 2];
             a[3] = src[pos + 3];
 
             f[0] = src_x - pixel_x;
@@ -68,9 +68,9 @@ static void downscale_img(u8 *src, u8 *dst, u32 src_w, u32 src_h, u32 dst_w, u32
             w[3] = f[0] * f[1] * 256.0;
 
             pos = pos_from_coord(x, y, dst_w);
-            dst[pos] = (r[0] * w[0] + r[1] * w[1] + r[2] * w[2] + r[3] * w[3]) >> 8;
+            dst[pos] = (b[0] * w[0] + b[1] * w[1] + b[2] * w[2] + b[3] * w[3]) >> 8;
             dst[pos + 1] = (g[0] * w[0] + g[1] * w[1] + g[2] * w[2] + g[3] * w[3]) >> 8;
-            dst[pos + 2] = (b[0] * w[0] + b[1] * w[1] + b[2] * w[2] + b[3] * w[3]) >> 8;
+            dst[pos + 2] = (r[0] * w[0] + r[1] * w[1] + r[2] * w[2] + r[3] * w[3]) >> 8;
             dst[pos + 3] = (a[0] * w[0] + a[1] * w[1] + a[2] * w[2] + a[3] * w[3]) >> 8;
         }
     }
@@ -116,7 +116,7 @@ static lv_res_t jpg_dec_open(lv_img_decoder_t *dec, lv_img_decoder_dsc_t *dsc) {
 
     u8 *img_data = tjAlloc(w * h * sizeof(lv_color_t));
 
-    if (tjDecompress2(decomp, img_dsc->data, img_dsc->data_size, img_data, w, 0, h, TJPF_RGBA, TJFLAG_ACCURATEDCT)) {
+    if (tjDecompress2(decomp, img_dsc->data, img_dsc->data_size, img_data, w, 0, h, TJPF_BGRA, TJFLAG_ACCURATEDCT)) {
         tjFree(img_data);
         tjDestroy(decomp);
         return LV_RES_INV;
