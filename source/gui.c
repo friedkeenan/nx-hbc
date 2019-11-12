@@ -1,6 +1,7 @@
-#include <lvgl/lvgl.h>
 #include <math.h>
 #include <stdio.h>
+#include <threads.h>
+#include <lvgl/lvgl.h>
 
 #include "gui.h"
 #include "log.h"
@@ -8,6 +9,8 @@
 #include "decoder.h"
 #include "drivers.h"
 #include "apps.h"
+#include "remote.h"
+#include "remote_net.h"
 
 enum {
     DialogButton_min,
@@ -63,6 +66,9 @@ static lv_style_t g_white_48_style;
 static lv_style_t g_white_28_style;
 static lv_style_t g_white_16_style;
 static lv_style_t g_no_apps_mbox_style;
+
+static thrd_t g_remote_thread;
+static remote_loader_t *g_remote_loader;
 
 static void change_page(int dir);
 static void draw_buttons();
@@ -851,4 +857,12 @@ void setup_misc() {
     lv_obj_t *logo = lv_img_create(lv_scr_act(), NULL);
     lv_img_set_src(logo, &g_logo);
     lv_obj_align(logo, NULL, LV_ALIGN_IN_BOTTOM_LEFT, 10, -32);
+
+    g_remote_loader = net_loader();
+    thrd_create(&g_remote_thread, remote_loader_thread, g_remote_loader);
+}
+
+void gui_exit() {
+    remote_loader_set_exit(g_remote_loader);
+    thrd_join(g_remote_thread, NULL);
 }

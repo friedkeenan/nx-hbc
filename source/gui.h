@@ -30,3 +30,5 @@
 void setup_screen();
 void setup_menu();
 void setup_misc();
+
+void gui_exit();

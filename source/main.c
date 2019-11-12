@@ -42,8 +42,10 @@ int main(int argc, char **argv) {
         lv_task_handler();
     }
 
-    assetsExit();
+    gui_exit();
+
     driversExit();
+    assetsExit();
     logExit();
 
     appletUnlockExit();

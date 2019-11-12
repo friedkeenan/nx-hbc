@@ -15,9 +15,7 @@
 void app_entry_init_base(app_entry_t *entry, char *path) {
     strcpy(entry->path, path);
 
-    strcpy(entry->args, "\"");
-    strcat(entry->args, path);
-    strcat(entry->args, "\"");
+    app_entry_add_arg(entry, path);
 
     char star_path[PATH_MAX + 1];
     app_entry_get_star_path(entry, star_path);
@@ -173,7 +171,10 @@ lv_res_t app_entry_delete(app_entry_t *entry) {
 }
 
 void app_entry_add_arg(app_entry_t *entry, char *arg) {
-    strcat(entry->args, " \"");
+    if (entry->args[0] != '\0')
+        strcat(entry->args, " ");
+
+    strcat(entry->args, "\"");
     strcat(entry->args, arg);
     strcat(entry->args, "\"");
 }

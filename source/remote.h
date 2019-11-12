@@ -49,7 +49,7 @@
 typedef enum {
     RemoteLoaderFlag_activated = BIT(0),
     RemoteLoaderFlag_exit = BIT(1),
-    RemoteLoaderFlag_load = BIT(2),
+    RemoteLoaderFlag_error = BIT(2),
 } RemoteLoaderFlag;
 
 typedef struct remote_loader {
@@ -85,4 +85,6 @@ bool remote_loader_get_activated(remote_loader_t *r);
 bool remote_loader_get_exit(remote_loader_t *r);
 void remote_loader_set_exit(remote_loader_t *r);
 
-void remote_loader_thread(remote_loader_t *r);
+bool remote_loader_get_error(remote_loader_t *r);
+
+int remote_loader_thread(void *arg);

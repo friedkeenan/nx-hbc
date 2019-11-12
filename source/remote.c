@@ -42,15 +42,20 @@
 #include <zlib.h>
 #include <lvgl/lvgl.h>
 
+#include <errno.h>
+
+#include "log.h"
 #include "remote.h"
 
 static ssize_t recvall(remote_loader_t *r, void *buf, size_t len) {
-    while (len) {
-        ssize_t tmp_len = r->recv_cb(r, buf, len);
-        if (tmp_len <= 0)
+    size_t curr_len = len;
+
+    while (curr_len && !remote_loader_get_exit(r)) {
+        ssize_t tmp_len = r->recv_cb(r, buf, curr_len);
+        if (tmp_len < 0)
             return tmp_len;
 
-        len -= tmp_len;
+        curr_len -= tmp_len;
         buf += tmp_len;
     }
 
@@ -58,12 +63,14 @@ static ssize_t recvall(remote_loader_t *r, void *buf, size_t len) {
 }
 
 static ssize_t sendall(remote_loader_t *r, const void *buf, size_t len) {
-    while (len) {
-        ssize_t tmp_len = r->send_cb(r, buf, len);
-        if (tmp_len <= 0)
+    size_t curr_len = len;
+
+    while (curr_len && !remote_loader_get_exit(r)) {
+        ssize_t tmp_len = r->send_cb(r, buf, curr_len);
+        if (tmp_len < 0)
             return tmp_len;
 
-        len -= tmp_len;
+        curr_len -= tmp_len;
         buf += tmp_len;
     }
 
@@ -71,9 +78,7 @@ static ssize_t sendall(remote_loader_t *r, const void *buf, size_t len) {
 }
 
 static int decompress(remote_loader_t *r, FILE *fp) {
-    int ret;
     z_stream strm;
-    u32 chunk_size = 0;
 
     // TODO: Make these use lv_mem_alloc and lv_mem_free
     strm.zalloc = Z_NULL;
@@ -81,11 +86,13 @@ static int decompress(remote_loader_t *r, FILE *fp) {
     strm.opaque = Z_NULL;
     strm.avail_in = 0;
     strm.next_in = Z_NULL;
-    ret = inflateInit(&strm);
+
+    int ret = inflateInit(&strm);
     if (ret != Z_OK)
         return ret;
 
     do {
+        u32 chunk_size = 0;
         if (remote_loader_get_exit(r)) {
             inflateEnd(&strm);
             return Z_DATA_ERROR;
@@ -142,12 +149,15 @@ static int decompress(remote_loader_t *r, FILE *fp) {
 }
 
 static int recv_app(remote_loader_t *r) {
+    logPrintf("recv_app start\n");
     int name_len, file_len;
     char file_name[PATH_MAX + 1];
 
     ssize_t len = recvall(r, &name_len, sizeof(name_len));
+    logPrintf("len(%#lx), sizeof(name_len)(%#lx)\n", len, sizeof(name_len));
     if (len != sizeof(name_len))
         return -1;
+    logPrintf("name_len(%d)\n", name_len);
 
     if (name_len >= sizeof(file_name) - 1)
         return -1;
@@ -155,12 +165,13 @@ static int recv_app(remote_loader_t *r) {
     len = recvall(r, file_name, name_len);
     if (len != name_len)
         return -1;
-
     file_name[name_len] = '\0';
+    logPrintf("file_name(%s)\n", file_name);
 
     len = recvall(r, &file_len, sizeof(file_len));
     if (len != sizeof(file_len))
         return -1;
+    logPrintf("file_len(%d)\n", file_len);
 
     mtx_lock(&r->mtx);
     r->total = file_len;
@@ -172,9 +183,8 @@ static int recv_app(remote_loader_t *r) {
     strcat(r->entry.path, "/");
     strcat(r->entry.path, file_name);
     app_entry_init_base(&r->entry, r->entry.path);
+    logPrintf("path: %s\n", r->entry.path);
 
-    if (r->add_args_cb != NULL)
-        r->add_args_cb(r); // For example the socket loader would add the _NXLINK_ arg
 
     int response = 0;
 
@@ -188,10 +198,13 @@ static int recv_app(remote_loader_t *r) {
         }
     }
 
+    logPrintf("send response(%d)\n", response);
     sendall(r, &response, sizeof(response));
+    logPrintf("sent response\n");
 
     if (response == 0) {
         if (decompress(r, fp) == Z_OK) {
+            logPrintf("good decompress\n");
             len = sendall(r, &response, sizeof(response));
             if (len != sizeof(response))
                 response = -1;
@@ -199,12 +212,14 @@ static int recv_app(remote_loader_t *r) {
             int args_len;
 
             if (response == 0) {
+                logPrintf("send successful\n");
                 len = recvall(r, &args_len, sizeof(args_len));
                 if (len != sizeof(args_len))
                     response = -1;
             }
 
             if (response == 0) {
+                logPrintf("recv successful\n");
                 if (args_len > APP_ARGS_LEN)
                     args_len = APP_ARGS_LEN;
 
@@ -218,13 +233,20 @@ static int recv_app(remote_loader_t *r) {
                     char *args_buf_end = args_buf + args_len;
 
                     while (args_buf_tmp < args_buf_end) {
+                        logPrintf("args_buf_tmp(%s)\n", args_buf_tmp);
                         app_entry_add_arg(&r->entry, args_buf_tmp);
 
-                        args_buf_tmp += strlen(args_buf);
+                        args_buf_tmp += strlen(args_buf) + 1;
                     }
+
+                    logPrintf("args 1: %s\n", r->entry.args);
+                    if (r->add_args_cb != NULL)
+                        r->add_args_cb(r); // For example the socket loader would add the _NXLINK_ arg
+                    logPrintf("args 2: %s\n", r->entry.args);
                 }
             }
         } else {
+            logPrintf("bad decompress\n");
             response = -1;
         }
 
@@ -270,9 +292,19 @@ void remote_loader_set_exit(remote_loader_t *r) {
     mtx_unlock(&r->mtx);
 }
 
-static void remote_loader_set_load(remote_loader_t *r) {
+bool remote_loader_get_error(remote_loader_t *r) {
+    bool flag;
+
     mtx_lock(&r->mtx);
-    r->flags |= RemoteLoaderFlag_load;
+    flag = r->flags & RemoteLoaderFlag_error;
+    mtx_unlock(&r->mtx);
+
+    return flag;
+}
+
+static void remote_loader_set_error(remote_loader_t *r) {
+    mtx_lock(&r->mtx);
+    r->flags |= RemoteLoaderFlag_error;
     mtx_unlock(&r->mtx);
 }
 
@@ -296,24 +328,38 @@ static void remote_loader_exit(remote_loader_t *r) {
 
     if (r->exit_cb != NULL)
         r->exit_cb(r);
-
-    r->flags &= RemoteLoaderFlag_load;
 }
 
-void remote_loader_thread(remote_loader_t *r) {
+int remote_loader_thread(void *arg) {
+    logPrintf("Remote start\n");
+    remote_loader_t *r = arg;
+
     if (remote_loader_init(r) != LV_RES_OK)
-        return;
+        return 0;
 
-    struct timespec loop_sleep = {.tv_nsec = 100000000};
+    logPrintf("init passed\n");
 
-    while ((r->loop_cb(r) != LV_RES_OK) && !remote_loader_get_exit(r))
-        thrd_sleep(&loop_sleep, NULL);
+    while (true) {
+        struct timespec loop_sleep = {.tv_nsec = 100000000};
 
-    if (!remote_loader_get_exit(r)) {
-        remote_loader_set_activated(r);
-        if (recv_app(r) == 0)
-            remote_loader_set_load(r);
+        while ((r->loop_cb(r) != LV_RES_OK) && !remote_loader_get_exit(r))
+            thrd_sleep(&loop_sleep, NULL);
+
+        logPrintf("loop done\n");
+
+        if (!remote_loader_get_exit(r)) {
+            remote_loader_set_activated(r);
+            if (recv_app(r) == 0) {
+                app_entry_load(&r->entry);
+                break;
+            } else {
+                remote_loader_set_error(r);
+            }
+        }
     }
 
     remote_loader_exit(r);
+
+    logPrintf("exit remote");
+    return 0;
 }

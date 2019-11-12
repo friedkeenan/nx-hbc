@@ -3,10 +3,12 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
+#include <errno.h>
 #include <lvgl/lvgl.h>
 #include <switch.h>
 
 #include "apps.h"
+#include "log.h"
 #include "remote.h"
 #include "remote_net.h"
 
@@ -44,6 +46,9 @@ static int set_nonblocking(int fd) {
 }
 
 static lv_res_t net_init_cb(remote_loader_t *r) {
+    if (R_FAILED(socketInitializeDefault()))
+        return LV_RES_INV;
+
     r->custom_data = calloc(1, sizeof(net_data_t));
     net_data_t *data = r->custom_data;
 
@@ -81,6 +86,8 @@ static lv_res_t net_init_cb(remote_loader_t *r) {
     if (listen(data->listenfd, 10) < 0)
         return LV_RES_INV;
 
+    data->connfd = -1;
+
     return LV_RES_OK;
 }
 
@@ -99,6 +106,8 @@ static void net_exit_cb(remote_loader_t *r) {
         close(data->udpfd);
 
     #endif
+
+    socketExit();
 
     free(data);
 }
@@ -146,13 +155,27 @@ static lv_res_t net_loop_cb(remote_loader_t *r) {
 ssize_t net_recv_cb(remote_loader_t *r, void *buf, size_t len) {
     net_data_t *data = r->custom_data;
 
-    return recv(data->connfd, buf, len, 0);
+    ssize_t tmp_len = recv(data->connfd, buf, len, 0);
+
+    if (tmp_len < 0) {
+        if (errno == EWOULDBLOCK || errno == EAGAIN)
+            return 0;
+    }
+
+    return tmp_len;
 }
 
 ssize_t net_send_cb(remote_loader_t *r, const void *buf, size_t len) {
     net_data_t *data = r->custom_data;
 
-    return send(data->connfd, buf, len, 0);
+    ssize_t tmp_len = send(data->connfd, buf, len, 0);
+
+    if (tmp_len < 0) {
+        if (errno == EWOULDBLOCK || errno == EAGAIN)
+            return 0;
+    }
+
+    return tmp_len;
 }
 
 void net_add_args_cb(remote_loader_t *r) {
