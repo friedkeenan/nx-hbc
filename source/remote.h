@@ -87,4 +87,6 @@ void remote_loader_set_exit(remote_loader_t *r);
 
 bool remote_loader_get_error(remote_loader_t *r);
 
+s16 remote_loader_get_progress(remote_loader_t *r);
+
 int remote_loader_thread(void *arg);

@@ -36,6 +36,7 @@ typedef enum {
     AssetId_dialog_background,
     AssetId_button_tiny,
     AssetId_button_tiny_focus,
+    AssetId_remote_progress,
 
     AssetId_Max
 } AssetId;

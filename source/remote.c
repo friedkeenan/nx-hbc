@@ -308,6 +308,20 @@ static void remote_loader_set_error(remote_loader_t *r) {
     mtx_unlock(&r->mtx);
 }
 
+s16 remote_loader_get_progress(remote_loader_t *r) {
+    size_t total, current;
+
+    mtx_lock(&r->mtx);
+    total = r->total;
+    current = r->current;
+    mtx_unlock(&r->mtx);
+
+    if (total == 0)
+        return 0;
+
+    return 100 * ((float) current / (float) total);
+}
+
 static lv_res_t remote_loader_init(remote_loader_t *r) {
     if (mtx_init(&r->mtx, mtx_plain) != thrd_success)
         return LV_RES_INV;
@@ -355,6 +369,8 @@ int remote_loader_thread(void *arg) {
             } else {
                 remote_loader_set_error(r);
             }
+        } else {
+            break;
         }
     }
 

@@ -28,7 +28,7 @@ static lv_img_dsc_t g_background;
 static lv_ll_t g_apps_ll;
 static int g_apps_ll_len;
 
-static lv_img_dsc_t g_star_dscs[2]; // {small, big}
+static lv_img_dsc_t g_star_dscs[2] = {0}; // {small, big}
 
 static lv_obj_t *g_curr_focused_tmp = NULL;
 
@@ -60,15 +60,20 @@ static bool g_page_arrow_anim_running = false;
 
 static lv_img_dsc_t g_logo;
 
+static thrd_t g_remote_thread;
+static remote_loader_t *g_remote_loader;
+static lv_img_dsc_t g_remote_progress_img;
+static lv_obj_t *g_remote_bar = NULL;
+static lv_obj_t *g_remote_percent = NULL;
+
 static lv_style_t g_transp_style;
 static lv_style_t g_dark_opa_64_style;
 static lv_style_t g_white_48_style;
 static lv_style_t g_white_28_style;
+static lv_style_t g_white_22_style;
 static lv_style_t g_white_16_style;
 static lv_style_t g_no_apps_mbox_style;
-
-static thrd_t g_remote_thread;
-static remote_loader_t *g_remote_loader;
+static lv_style_t g_blue_body_style;
 
 static void change_page(int dir);
 static void draw_buttons();
@@ -755,6 +760,10 @@ void setup_menu() {
     g_white_28_style.text.font = &lv_font_roboto_28;
     g_white_28_style.text.color = LV_COLOR_WHITE;
 
+    lv_style_copy(&g_white_22_style, &lv_style_plain);
+    g_white_22_style.text.font = &lv_font_roboto_22;
+    g_white_22_style.text.color = LV_COLOR_WHITE;
+
     lv_style_copy(&g_white_16_style, &lv_style_plain);
     g_white_16_style.text.color = LV_COLOR_WHITE;
 
@@ -764,6 +773,10 @@ void setup_menu() {
     g_no_apps_mbox_style.body.opa = 128;
     g_no_apps_mbox_style.text.color = LV_COLOR_WHITE;
     g_no_apps_mbox_style.text.font = &lv_font_roboto_48;
+
+    lv_style_copy(&g_blue_body_style, &lv_style_plain);
+    g_blue_body_style.body.main_color = RGB_MAKE(0xc8, 0xe1, 0xed);
+    g_blue_body_style.body.grad_color = RGB_MAKE(0x46, 0xc1, 0xff);
 
     u8 *data;
     size_t size;
@@ -840,6 +853,37 @@ void setup_menu() {
     draw_buttons();
 }
 
+static void remote_progress_task(lv_task_t *task) {
+    if (remote_loader_get_activated(g_remote_loader)) {
+        if (g_remote_bar == NULL) {
+            g_remote_bar = lv_bar_create(lv_scr_act(), NULL);
+            lv_obj_set_size(g_remote_bar, REMOTE_PROGRESS_W - 10, REMOTE_PROGRESS_H - 10);
+            lv_obj_align(g_remote_bar, NULL, LV_ALIGN_CENTER, 0, 0);
+
+            lv_bar_set_style(g_remote_bar, LV_BAR_STYLE_BG, &g_transp_style);
+            lv_bar_set_style(g_remote_bar, LV_BAR_STYLE_INDIC, &g_blue_body_style);
+
+            lv_bar_set_range(g_remote_bar, 0, 100);
+
+            lv_obj_t *img = lv_img_create(lv_scr_act(), NULL);
+            lv_img_set_src(img, &g_remote_progress_img);
+            lv_obj_align(img, g_remote_bar, LV_ALIGN_CENTER, 0, 0);
+
+            g_remote_percent = lv_label_create(img, NULL);
+            lv_obj_set_style(g_remote_percent, &g_white_22_style);
+            lv_obj_align(g_remote_percent, img, LV_ALIGN_IN_BOTTOM_RIGHT, -10, -10);
+        }
+
+        s16 progress = remote_loader_get_progress(g_remote_loader);
+        lv_bar_set_value(g_remote_bar, progress, LV_ANIM_OFF);
+
+        char percent[8];
+        percent[0] = '\0';
+        sprintf(percent, "%d%%", progress);
+        lv_label_set_text(g_remote_percent, percent);
+    }
+}
+
 void setup_misc() {
     u8 *data;
     size_t size;
@@ -858,11 +902,25 @@ void setup_misc() {
     lv_img_set_src(logo, &g_logo);
     lv_obj_align(logo, NULL, LV_ALIGN_IN_BOTTOM_LEFT, 10, -32);
 
+    assetsGetData(AssetId_remote_progress, &data, &size);
+    g_remote_progress_img = (lv_img_dsc_t) {
+        .header.always_zero = 0,
+        .header.w = REMOTE_PROGRESS_W,
+        .header.h = REMOTE_PROGRESS_H,
+        .data_size = size,
+        .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
+        .data = data,
+    };
+
     g_remote_loader = net_loader();
     thrd_create(&g_remote_thread, remote_loader_thread, g_remote_loader);
+
+    lv_task_t *task = lv_task_create(remote_progress_task, 5, LV_TASK_PRIO_MID, NULL);
+    lv_task_ready(task);
 }
 
 void gui_exit() {
     remote_loader_set_exit(g_remote_loader);
+    logPrintf("thrd_join\n");
     thrd_join(g_remote_thread, NULL);
 }

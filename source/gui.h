@@ -27,6 +27,12 @@
 #define LOGO_W 381
 #define LOGO_H 34
 
+#define REMOTE_PROGRESS_W 600
+#define REMOTE_PROGRESS_H 168
+
+#define RGB_MAKE(r, g, b) (lv_color_make(b, g, r))
+#define BGR_TO_RGB(c) (lv_color_make(c.ch.blue, c.ch.green, c.ch.red))
+
 void setup_screen();
 void setup_menu();
 void setup_misc();

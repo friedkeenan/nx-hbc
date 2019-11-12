@@ -49,7 +49,7 @@ static lv_res_t net_init_cb(remote_loader_t *r) {
     if (R_FAILED(socketInitializeDefault()))
         return LV_RES_INV;
 
-    r->custom_data = calloc(1, sizeof(net_data_t));
+    r->custom_data = malloc(sizeof(net_data_t));
     net_data_t *data = r->custom_data;
 
     struct sockaddr_in serv_addr;
@@ -152,7 +152,7 @@ static lv_res_t net_loop_cb(remote_loader_t *r) {
     return LV_RES_INV;
 }
 
-ssize_t net_recv_cb(remote_loader_t *r, void *buf, size_t len) {
+static ssize_t net_recv_cb(remote_loader_t *r, void *buf, size_t len) {
     net_data_t *data = r->custom_data;
 
     ssize_t tmp_len = recv(data->connfd, buf, len, 0);
@@ -165,7 +165,7 @@ ssize_t net_recv_cb(remote_loader_t *r, void *buf, size_t len) {
     return tmp_len;
 }
 
-ssize_t net_send_cb(remote_loader_t *r, const void *buf, size_t len) {
+static ssize_t net_send_cb(remote_loader_t *r, const void *buf, size_t len) {
     net_data_t *data = r->custom_data;
 
     ssize_t tmp_len = send(data->connfd, buf, len, 0);
@@ -178,7 +178,7 @@ ssize_t net_send_cb(remote_loader_t *r, const void *buf, size_t len) {
     return tmp_len;
 }
 
-void net_add_args_cb(remote_loader_t *r) {
+static void net_add_args_cb(remote_loader_t *r) {
     net_data_t *data = r->custom_data;
 
     char arg[17];
