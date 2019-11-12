@@ -1,11 +1,13 @@
 #include <stdio.h>
 #include <stdarg.h>
+#include <threads.h>
 #include <lvgl/lvgl.h>
 #include <switch.h>
 
 #include "log.h"
 
-FILE *g_log_fp;
+static FILE *g_log_fp;
+static mtx_t g_log_mtx;
 
 static void log_cb(lv_log_level_t level, const char *file, u32 line, const char *dsc) {
     switch (level) {
@@ -27,6 +29,8 @@ static void log_cb(lv_log_level_t level, const char *file, u32 line, const char 
 }
 
 void logInitialize(const char *path) {
+    mtx_init(&g_log_mtx, mtx_plain);
+
     g_log_fp = fopen(path, "w");
 
     lv_log_register_print_cb(log_cb);
@@ -34,9 +38,11 @@ void logInitialize(const char *path) {
 
 void logExit() {
     fclose(g_log_fp);
+    mtx_destroy(&g_log_mtx);
 }
 
 void logPrintf(const char *fmt, ...) {
+    mtx_lock(&g_log_mtx);
     va_list argptr;
 
     va_start(argptr, fmt);
@@ -44,4 +50,5 @@ void logPrintf(const char *fmt, ...) {
     va_end(argptr);
 
     fflush(g_log_fp);
+    mtx_unlock(&g_log_mtx);
 }

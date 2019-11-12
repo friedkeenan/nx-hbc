@@ -354,6 +354,7 @@ int remote_loader_thread(void *arg) {
     logPrintf("init passed\n");
 
     while (true) {
+        logPrintf("loop\n");
         struct timespec loop_sleep = {.tv_nsec = 100000000};
 
         while ((r->loop_cb(r) != LV_RES_OK) && !remote_loader_get_exit(r))

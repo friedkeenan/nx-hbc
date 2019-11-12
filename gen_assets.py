@@ -30,5 +30,5 @@ if __name__ == "__main__":
     if not assets_dir.exists():
         assets_dir.mkdir()
 
-    for p in res_dir.glob("*"):
+    for p in res_dir.iterdir():
         asset_to_bin(p, Path(assets_dir, f"{p.stem}.bin"))

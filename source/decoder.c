@@ -20,8 +20,8 @@ static void downscale_img(u8 *src, u8 *dst, u32 src_w, u32 src_h, u32 dst_w, u32
     float y_scale = (float) src_h / (float) dst_h;
 
     u8 b[4];
-    u8 r[4];
     u8 g[4];
+    u8 r[4];
     u8 a[4];
     float f[4];
     int w[4];
