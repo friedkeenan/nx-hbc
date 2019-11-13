@@ -40,12 +40,16 @@
 #include <limits.h>
 #include <threads.h>
 #include <zlib.h>
+#include <sys/stat.h>
+
 #include <lvgl/lvgl.h>
 
-#include <errno.h>
-
-#include "log.h"
 #include "remote.h"
+#include "log.h"
+#include "config.h"
+#include "util.h"
+
+#define TMP_APP_PATH CONFIG_DIR "/tmp_remote.nro"
 
 static bool remote_loader_end_recv(remote_loader_t *r);
 
@@ -190,7 +194,7 @@ static int recv_app(remote_loader_t *r) {
 
     int response = 0;
 
-    FILE *fp = fopen(r->entry.path, "wb");
+    FILE *fp = fopen(TMP_APP_PATH, "wb");
     if (fp == NULL) {
         response = -1;
     } else {
@@ -255,8 +259,17 @@ static int recv_app(remote_loader_t *r) {
         fflush(fp);
         fclose(fp);
 
-        if (response < 0)
-            remove(r->entry.path);
+        if (response < 0) {
+            remove(TMP_APP_PATH);
+        } else {
+            char tmp_path[PATH_MAX + 1];
+            strcpy(tmp_path, r->entry.path);
+            *(get_name(tmp_path)) = '\0';
+            logPrintf("tmp_path(%s)\n", tmp_path);
+
+            mkdirs(tmp_path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+            rename(TMP_APP_PATH, r->entry.path);
+        }
     }
 
     return response;

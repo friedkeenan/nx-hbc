@@ -6,7 +6,7 @@
 #include "assets.h"
 #include "decoder.h"
 #include "gui.h"
-#include "apps.h"
+#include "config.h"
 
 static bool g_should_loop = true;
 
@@ -17,7 +17,8 @@ void stop_main_loop() {
 int main(int argc, char **argv) {
     appletLockExit();
 
-    logInitialize("/hbc.log");
+    logInitialize("sdmc:/hbc.log");
+    config_init();
 
     lv_init();
 
