@@ -41,7 +41,6 @@
 #include <threads.h>
 #include <zlib.h>
 #include <sys/stat.h>
-
 #include <lvgl/lvgl.h>
 
 #include "remote.h"
@@ -268,6 +267,7 @@ static int recv_app(remote_loader_t *r) {
             logPrintf("tmp_path(%s)\n", tmp_path);
 
             mkdirs(tmp_path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+            remove(r->entry.path);
             rename(TMP_APP_PATH, r->entry.path);
         }
     }

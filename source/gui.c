@@ -876,7 +876,6 @@ static void remote_progress_task(lv_task_t *task) {
 
             g_remote_percent = lv_label_create(img, NULL);
             lv_obj_set_style(g_remote_percent, &g_white_22_style);
-            lv_obj_align(g_remote_percent, img, LV_ALIGN_IN_BOTTOM_RIGHT, -10, -10);
 
             g_remote_name = lv_label_create(img, g_remote_percent);
             lv_obj_align(g_remote_name, NULL, LV_ALIGN_IN_TOP_LEFT, (REMOTE_PROGRESS_W - REMOTE_PROGRESS_INNER_W) / 2, 20);
@@ -894,6 +893,7 @@ static void remote_progress_task(lv_task_t *task) {
         percent[0] = '\0';
         sprintf(percent, "%d%%", progress);
         lv_label_set_text(g_remote_percent, percent);
+        lv_obj_align(g_remote_percent, NULL, LV_ALIGN_IN_BOTTOM_RIGHT, -10, -10);
     } else if (remote_loader_get_error(g_remote_loader)) {
         lv_obj_del(g_remote_cover);
         g_remote_cover = NULL;
