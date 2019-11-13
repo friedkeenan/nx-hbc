@@ -112,6 +112,15 @@ static void net_exit_cb(remote_loader_t *r) {
     free(data);
 }
 
+static void net_error_cb(remote_loader_t *r) {
+    net_data_t *data = r->custom_data;
+
+    if (data->connfd >= 0) {
+        close(data->connfd);
+        data->connfd = -1;
+    }
+}
+
 static lv_res_t net_loop_cb(remote_loader_t *r) {
     net_data_t *data = r->custom_data;
     struct sockaddr_in remote;
@@ -141,8 +150,8 @@ static lv_res_t net_loop_cb(remote_loader_t *r) {
             return LV_RES_INV;
         }
 
-        close(data->listenfd);
-        data->listenfd = -1;
+        /*close(data->listenfd);
+        data->listenfd = -1;*/
 
         data->host = remote.sin_addr.s_addr;
 
@@ -156,6 +165,8 @@ static ssize_t net_recv_cb(remote_loader_t *r, void *buf, size_t len) {
     net_data_t *data = r->custom_data;
 
     ssize_t tmp_len = recv(data->connfd, buf, len, 0);
+    if (tmp_len == 0)
+        return -1;
 
     if (tmp_len < 0) {
         if (errno == EWOULDBLOCK || errno == EAGAIN)
@@ -169,6 +180,8 @@ static ssize_t net_send_cb(remote_loader_t *r, const void *buf, size_t len) {
     net_data_t *data = r->custom_data;
 
     ssize_t tmp_len = send(data->connfd, buf, len, 0);
+    if (tmp_len == 0)
+        return -1;
 
     if (tmp_len < 0) {
         if (errno == EWOULDBLOCK || errno == EAGAIN)
@@ -191,6 +204,8 @@ static void net_add_args_cb(remote_loader_t *r) {
 static remote_loader_t g_net_loader = {
     .init_cb = net_init_cb,
     .exit_cb = net_exit_cb,
+
+    .error_cb = net_error_cb,
 
     .loop_cb = net_loop_cb,
 

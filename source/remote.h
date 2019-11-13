@@ -50,6 +50,7 @@ typedef enum {
     RemoteLoaderFlag_activated = BIT(0),
     RemoteLoaderFlag_exit = BIT(1),
     RemoteLoaderFlag_error = BIT(2),
+    RemoteLoaderFlag_cancel = BIT(3),
 } RemoteLoaderFlag;
 
 typedef struct remote_loader {
@@ -65,6 +66,8 @@ typedef struct remote_loader {
 
     lv_res_t (*init_cb)(struct remote_loader *r);
     void (*exit_cb)(struct remote_loader *r);
+
+    void (*error_cb)(struct remote_loader *r);
 
     /*
      * Should return LV_RES_INV until it's ready to
@@ -86,6 +89,9 @@ bool remote_loader_get_exit(remote_loader_t *r);
 void remote_loader_set_exit(remote_loader_t *r);
 
 bool remote_loader_get_error(remote_loader_t *r);
+void remote_loader_set_error(remote_loader_t *r, bool error);
+
+void remote_loader_set_cancel(remote_loader_t *r, bool cancel);
 
 s16 remote_loader_get_progress(remote_loader_t *r);
 

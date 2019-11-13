@@ -47,10 +47,12 @@
 #include "log.h"
 #include "remote.h"
 
+static bool remote_loader_end_recv(remote_loader_t *r);
+
 static ssize_t recvall(remote_loader_t *r, void *buf, size_t len) {
     size_t curr_len = len;
 
-    while (curr_len && !remote_loader_get_exit(r)) {
+    while (curr_len && !remote_loader_end_recv(r)) {
         ssize_t tmp_len = r->recv_cb(r, buf, curr_len);
         if (tmp_len < 0)
             return tmp_len;
@@ -65,7 +67,7 @@ static ssize_t recvall(remote_loader_t *r, void *buf, size_t len) {
 static ssize_t sendall(remote_loader_t *r, const void *buf, size_t len) {
     size_t curr_len = len;
 
-    while (curr_len && !remote_loader_get_exit(r)) {
+    while (curr_len && !remote_loader_end_recv(r)) {
         ssize_t tmp_len = r->send_cb(r, buf, curr_len);
         if (tmp_len < 0)
             return tmp_len;
@@ -93,7 +95,7 @@ static int decompress(remote_loader_t *r, FILE *fp) {
 
     do {
         u32 chunk_size = 0;
-        if (remote_loader_get_exit(r)) {
+        if (remote_loader_end_recv(r)) {
             inflateEnd(&strm);
             return Z_DATA_ERROR;
         }
@@ -110,7 +112,7 @@ static int decompress(remote_loader_t *r, FILE *fp) {
         }
 
         strm.avail_in = recvall(r, r->in_buf, chunk_size);
-        if (strm.avail_in == 0) {
+        if (strm.avail_in != chunk_size) {
             inflateEnd(&strm);
             return Z_DATA_ERROR;
         }
@@ -270,9 +272,12 @@ bool remote_loader_get_activated(remote_loader_t *r) {
     return flag;
 }
 
-static void remote_loader_set_activated(remote_loader_t *r) {
+static void remote_loader_set_activated(remote_loader_t *r, bool activated) {
     mtx_lock(&r->mtx);
-    r->flags |= RemoteLoaderFlag_activated;
+    if (activated)
+        r->flags |= RemoteLoaderFlag_activated;
+    else
+        r->flags &= ~(RemoteLoaderFlag_activated);
     mtx_unlock(&r->mtx);
 }
 
@@ -302,10 +307,32 @@ bool remote_loader_get_error(remote_loader_t *r) {
     return flag;
 }
 
-static void remote_loader_set_error(remote_loader_t *r) {
+void remote_loader_set_error(remote_loader_t *r, bool error) {
     mtx_lock(&r->mtx);
-    r->flags |= RemoteLoaderFlag_error;
+    if (error)
+        r->flags |= RemoteLoaderFlag_error;
+    else
+        r->flags &= ~(RemoteLoaderFlag_error);
     mtx_unlock(&r->mtx);
+}
+
+void remote_loader_set_cancel(remote_loader_t *r, bool cancel) {
+    mtx_lock(&r->mtx);
+    if (cancel)
+        r->flags |= RemoteLoaderFlag_cancel;
+    else
+        r->flags &= ~(RemoteLoaderFlag_cancel);
+    mtx_unlock(&r->mtx);
+}
+
+static bool remote_loader_end_recv(remote_loader_t *r) {
+    bool flag;
+
+    mtx_lock(&r->mtx);
+    flag = r->flags & (RemoteLoaderFlag_exit | RemoteLoaderFlag_cancel);
+    mtx_unlock(&r->mtx);
+
+    return flag;
 }
 
 s16 remote_loader_get_progress(remote_loader_t *r) {
@@ -363,12 +390,22 @@ int remote_loader_thread(void *arg) {
         logPrintf("loop done\n");
 
         if (!remote_loader_get_exit(r)) {
-            remote_loader_set_activated(r);
+            remote_loader_set_activated(r, true);
             if (recv_app(r) == 0) {
                 app_entry_load(&r->entry);
                 break;
             } else {
-                remote_loader_set_error(r);
+                logPrintf("error\n");
+                remote_loader_set_error(r, true);
+                remote_loader_set_activated(r, false);
+
+                if (r->error_cb != NULL)
+                    r->error_cb(r);
+
+                mtx_lock(&r->mtx);
+                r->total = 0;
+                r->current = 0;
+                mtx_unlock(&r->mtx);
             }
         } else {
             break;

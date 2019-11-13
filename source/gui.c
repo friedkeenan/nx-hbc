@@ -64,6 +64,8 @@ static lv_img_dsc_t g_logo;
 static thrd_t g_remote_thread;
 static remote_loader_t *g_remote_loader;
 static lv_img_dsc_t g_remote_progress_img;
+static lv_style_t g_remote_bar_indic_style;
+static lv_obj_t *g_remote_cover = NULL;
 static lv_obj_t *g_remote_bar = NULL;
 static lv_obj_t *g_remote_name = NULL;
 static lv_obj_t *g_remote_percent = NULL;
@@ -75,7 +77,6 @@ static lv_style_t g_white_28_style;
 static lv_style_t g_white_22_style;
 static lv_style_t g_white_16_style;
 static lv_style_t g_no_apps_mbox_style;
-static lv_style_t g_blue_body_style;
 
 static void change_page(int dir);
 static void draw_buttons();
@@ -776,10 +777,6 @@ void setup_menu() {
     g_no_apps_mbox_style.text.color = LV_COLOR_WHITE;
     g_no_apps_mbox_style.text.font = &lv_font_roboto_48;
 
-    lv_style_copy(&g_blue_body_style, &lv_style_plain);
-    g_blue_body_style.body.main_color = lv_color_hex(0xc8e1ed);
-    g_blue_body_style.body.grad_color = lv_color_hex(0x46c1ff);
-
     u8 *data;
     size_t size;
 
@@ -857,17 +854,23 @@ void setup_menu() {
 
 static void remote_progress_task(lv_task_t *task) {
     if (remote_loader_get_activated(g_remote_loader)) {
-        if (g_remote_bar == NULL) {
-            g_remote_bar = lv_bar_create(lv_scr_act(), NULL);
-            lv_obj_set_size(g_remote_bar, REMOTE_PROGRESS_W - 10, REMOTE_PROGRESS_H - 10);
+        if (g_remote_cover == NULL) {
+            lv_group_focus_freeze(keypad_group(), true);
+
+            g_remote_cover = lv_obj_create(lv_scr_act(), NULL);
+            lv_obj_set_size(g_remote_cover, LV_HOR_RES_MAX, LV_VER_RES_MAX);
+            lv_obj_set_style(g_remote_cover, &g_dark_opa_64_style);
+
+            g_remote_bar = lv_bar_create(g_remote_cover, NULL);
+            lv_obj_set_size(g_remote_bar, REMOTE_PROGRESS_INNER_W + 10, REMOTE_PROGRESS_INNER_H + 10);
             lv_obj_align(g_remote_bar, NULL, LV_ALIGN_CENTER, 0, 0);
 
             lv_bar_set_style(g_remote_bar, LV_BAR_STYLE_BG, &g_transp_style);
-            lv_bar_set_style(g_remote_bar, LV_BAR_STYLE_INDIC, &g_blue_body_style);
+            lv_bar_set_style(g_remote_bar, LV_BAR_STYLE_INDIC, &g_remote_bar_indic_style);
 
             lv_bar_set_range(g_remote_bar, 0, 100);
 
-            lv_obj_t *img = lv_img_create(lv_scr_act(), NULL);
+            lv_obj_t *img = lv_img_create(g_remote_cover, NULL);
             lv_img_set_src(img, &g_remote_progress_img);
             lv_obj_align(img, g_remote_bar, LV_ALIGN_CENTER, 0, 0);
 
@@ -876,7 +879,7 @@ static void remote_progress_task(lv_task_t *task) {
             lv_obj_align(g_remote_percent, img, LV_ALIGN_IN_BOTTOM_RIGHT, -10, -10);
 
             g_remote_name = lv_label_create(img, g_remote_percent);
-            lv_obj_align(g_remote_name, NULL, LV_ALIGN_IN_TOP_LEFT, 60, 20);
+            lv_obj_align(g_remote_name, NULL, LV_ALIGN_IN_TOP_LEFT, (REMOTE_PROGRESS_W - REMOTE_PROGRESS_INNER_W) / 2, 20);
         }
 
         s16 progress = remote_loader_get_progress(g_remote_loader);
@@ -891,6 +894,13 @@ static void remote_progress_task(lv_task_t *task) {
         percent[0] = '\0';
         sprintf(percent, "%d%%", progress);
         lv_label_set_text(g_remote_percent, percent);
+    } else if (remote_loader_get_error(g_remote_loader)) {
+        lv_obj_del(g_remote_cover);
+        g_remote_cover = NULL;
+
+        lv_group_focus_freeze(keypad_group(), false);
+
+        remote_loader_set_error(g_remote_loader, false);
     }
 }
 
@@ -921,6 +931,10 @@ void setup_misc() {
         .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
         .data = data,
     };
+
+    lv_style_copy(&g_remote_bar_indic_style, &lv_style_plain);
+    g_remote_bar_indic_style.body.main_color = lv_color_hex(0xc8e1ed);
+    g_remote_bar_indic_style.body.grad_color = lv_color_hex(0x46c1ff);
 
     g_remote_loader = net_loader();
     thrd_create(&g_remote_thread, remote_loader_thread, g_remote_loader);

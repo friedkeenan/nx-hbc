@@ -29,6 +29,8 @@
 
 #define REMOTE_PROGRESS_W 600
 #define REMOTE_PROGRESS_H 168
+#define REMOTE_PROGRESS_INNER_W 480
+#define REMOTE_PROGRESS_INNER_H 60
 
 void setup_screen();
 void setup_menu();
