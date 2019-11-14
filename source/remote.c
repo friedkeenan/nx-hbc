@@ -368,8 +368,13 @@ static lv_res_t remote_loader_init(remote_loader_t *r) {
 
     lv_res_t res = LV_RES_OK;
 
-    if (r->init_cb != NULL)
-        res = r->init_cb(r);
+    if (r->init_cb != NULL) {
+        while (!remote_loader_get_exit(r)) {
+            res = r->init_cb(r);
+            if (res == LV_RES_OK)
+                break;
+        }
+    }
 
     if (res != LV_RES_OK)
         mtx_destroy(&r->mtx);

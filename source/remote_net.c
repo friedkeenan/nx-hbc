@@ -1,3 +1,41 @@
+/*
+ * Copyright 2017-2018 nx-hbmenu Authors
+ *
+ * Permission to use, copy, modify, and/or distribute this
+ * software for any purpose with or without fee is hereby
+ * granted, provided that the above copyright notice and
+ * this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE
+ * FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
+ * OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+ * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/*
+ * Copyright 2017 libnx Authors
+ *
+ * Permission to use, copy, modify, and/or distribute this
+ * software for any purpose with or without fee is hereby
+ * granted, provided that the above copyright notice and
+ * this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR
+ * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE
+ * FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
+ * OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+ * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/socket.h>
@@ -46,8 +84,36 @@ static int set_nonblocking(int fd) {
 }
 
 static lv_res_t net_init_cb(remote_loader_t *r) {
-    if (R_FAILED(socketInitializeDefault()))
+    logPrintf("net_init_cb start\n");
+    if (R_FAILED(socketInitializeDefault())) {
+        logPrintf("socket bad\n");
         return LV_RES_INV;
+    }
+
+    logPrintf("nifmInitialize\n");
+    if (R_FAILED(nifmInitialize())) {
+        socketExit();
+        return LV_RES_INV;
+    }
+
+    NifmInternetConnectionType conn_type;
+    u32 conn_strength = 0;
+    NifmInternetConnectionStatus conn_status;
+
+    logPrintf("get conn_strength\n");
+    if (R_FAILED(nifmGetInternetConnectionStatus(&conn_type, &conn_strength, &conn_status))) {
+        logPrintf("uh oh\n");
+        nifmExit();
+        socketExit();
+        return LV_RES_INV;
+    }
+    nifmExit();
+
+    logPrintf("conn_strength(%u)\n", conn_strength);
+    if (conn_strength == 0) {
+        socketExit();
+        return LV_RES_INV;
+    }
 
     r->custom_data = malloc(sizeof(net_data_t));
     net_data_t *data = r->custom_data;
@@ -62,29 +128,80 @@ static lv_res_t net_init_cb(remote_loader_t *r) {
     #if PING_ENABLED
 
     data->udpfd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (data->udpfd < 0)
+    if (data->udpfd < 0) {
+        free(data);
+        socketExit();
         return LV_RES_INV;
+    }
 
-    if (bind(data->udpfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
+    if (bind(data->udpfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        close(data->connfd);
+        free(data);
+        socketExit();
+        socketExit();
         return LV_RES_INV;
+    }
 
-    if (set_nonblocking(data->udpfd) == -1)
+    if (set_nonblocking(data->udpfd) == -1) {
+        close(data->udpfd);
+        free(data);
+        socketExit();
         return LV_RES_INV;
+    }
 
     #endif
 
     data->listenfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (data->listenfd < 0)
-        return LV_RES_INV;
+    if (data->listenfd < 0) {
+        #if PING_ENABLED
 
-    if (bind(data->listenfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
-        return LV_RES_INV;
+        close(data->udpfd);
 
-    if (set_nonblocking(data->listenfd) == -1)
-        return LV_RES_INV;
+        #endif
 
-    if (listen(data->listenfd, 10) < 0)
+        free(data);
+        socketExit();
         return LV_RES_INV;
+    }
+
+    if (bind(data->listenfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        #if PING_ENABLED
+
+        close(data->udpfd);
+
+        #endif
+
+        close(data->listenfd);
+        free(data);
+        socketExit();
+        return LV_RES_INV;
+    }
+
+    if (set_nonblocking(data->listenfd) == -1) {
+        #if PING_ENABLED
+
+        close(data->udpfd);
+
+        #endif
+
+        close(data->listenfd);
+        free(data);
+        socketExit();
+        return LV_RES_INV;
+    }
+
+    if (listen(data->listenfd, 10) < 0) {
+        #if PING_ENABLED
+
+        close(data->udpfd);
+
+        #endif
+
+        close(data->listenfd);
+        free(data);
+        socketExit();
+        return LV_RES_INV;
+    }
 
     data->connfd = -1;
 
@@ -145,7 +262,11 @@ static lv_res_t net_loop_cb(remote_loader_t *r) {
 
     if (data->listenfd >= 0 && data->connfd < 0) {
         data->connfd = accept(data->listenfd, (struct sockaddr *) &remote, &remote_len);
-        if (data->connfd < 0 || set_nonblocking(data->connfd) == -1) {
+        if (data->connfd < 0) {
+            data->connfd = -1;
+            return LV_RES_INV;
+        } else if (set_nonblocking(data->connfd) == -1) {
+            close(data->connfd);
             data->connfd = -1;
             return LV_RES_INV;
         }
