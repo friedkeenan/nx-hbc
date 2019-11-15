@@ -78,6 +78,8 @@ static lv_style_t g_white_22_style;
 static lv_style_t g_white_16_style;
 static lv_style_t g_no_apps_mbox_style;
 
+static const char *g_ok_btns[] = {"OK", ""};
+
 static void change_page(int dir);
 static void draw_buttons();
 
@@ -852,6 +854,26 @@ void setup_menu() {
     draw_buttons();
 }
 
+static void remote_error_mbox_event_cb(lv_obj_t *obj, lv_event_t event) {
+    logPrintf("mbox error: event(%d)\n", event);
+    if (event == LV_EVENT_DELETE)
+        logPrintf("delete\n");
+
+    if (event == LV_EVENT_PRESSED) {
+        logPrintf("pressed\n");
+
+        u32 btn_id = lv_mbox_get_active_btn(obj);
+        logPrintf("btn_id(%u)\n", btn_id);
+
+        lv_obj_del(obj);
+        lv_obj_del(g_remote_cover);
+        g_remote_cover = NULL;
+
+        lv_group_focus_freeze(keypad_group(), false);
+        remote_loader_set_error(g_remote_loader, false);
+    }
+}
+
 static void remote_progress_task(lv_task_t *task) {
     if (remote_loader_get_activated(g_remote_loader)) {
         if (g_remote_cover == NULL) {
@@ -895,12 +917,16 @@ static void remote_progress_task(lv_task_t *task) {
         lv_label_set_text(g_remote_percent, percent);
         lv_obj_align(g_remote_percent, NULL, LV_ALIGN_IN_BOTTOM_RIGHT, -10, -10);
     } else if (remote_loader_get_error(g_remote_loader)) {
-        lv_obj_del(g_remote_cover);
-        g_remote_cover = NULL;
+        lv_obj_clean(g_remote_cover);
 
-        lv_group_focus_freeze(keypad_group(), false);
-
-        remote_loader_set_error(g_remote_loader, false);
+        lv_obj_t *mbox = lv_mbox_create(g_remote_cover, NULL);
+        lv_obj_set_width(mbox, LIST_BTN_W);
+        lv_obj_set_height(mbox, LIST_BTN_H);
+        lv_mbox_set_text(mbox, "An error has occured");
+        lv_mbox_add_btns(mbox, g_ok_btns);
+        lv_obj_align(mbox, NULL, LV_ALIGN_CENTER, 0, 0);
+        
+        lv_obj_set_event_cb(mbox, remote_error_mbox_event_cb);
     }
 }
 

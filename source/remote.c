@@ -373,6 +373,9 @@ static lv_res_t remote_loader_init(remote_loader_t *r) {
             res = r->init_cb(r);
             if (res == LV_RES_OK)
                 break;
+
+            struct timespec loop_sleep = {.tv_nsec = 100000000};
+            thrd_sleep(&loop_sleep, NULL);
         }
     }
 

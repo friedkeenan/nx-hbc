@@ -84,13 +84,10 @@ static int set_nonblocking(int fd) {
 }
 
 static lv_res_t net_init_cb(remote_loader_t *r) {
-    logPrintf("net_init_cb start\n");
     if (R_FAILED(socketInitializeDefault())) {
-        logPrintf("socket bad\n");
         return LV_RES_INV;
     }
 
-    logPrintf("nifmInitialize\n");
     if (R_FAILED(nifmInitialize())) {
         socketExit();
         return LV_RES_INV;
@@ -100,16 +97,13 @@ static lv_res_t net_init_cb(remote_loader_t *r) {
     u32 conn_strength = 0;
     NifmInternetConnectionStatus conn_status;
 
-    logPrintf("get conn_strength\n");
     if (R_FAILED(nifmGetInternetConnectionStatus(&conn_type, &conn_strength, &conn_status))) {
-        logPrintf("uh oh\n");
         nifmExit();
         socketExit();
         return LV_RES_INV;
     }
     nifmExit();
 
-    logPrintf("conn_strength(%u)\n", conn_strength);
     if (conn_strength == 0) {
         socketExit();
         return LV_RES_INV;
@@ -137,7 +131,6 @@ static lv_res_t net_init_cb(remote_loader_t *r) {
     if (bind(data->udpfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         close(data->connfd);
         free(data);
-        socketExit();
         socketExit();
         return LV_RES_INV;
     }
@@ -270,9 +263,6 @@ static lv_res_t net_loop_cb(remote_loader_t *r) {
             data->connfd = -1;
             return LV_RES_INV;
         }
-
-        /*close(data->listenfd);
-        data->listenfd = -1;*/
 
         data->host = remote.sin_addr.s_addr;
 
