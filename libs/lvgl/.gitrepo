@@ -6,7 +6,7 @@
 [subrepo]
 	remote = https://github.com/littlevgl/lvgl
 	branch = master
-	commit = 5e7edc30be73eb6ef38f3f7e2d75e1195c41aaa7
+	commit = 197d95cf60ea685db1f39bbaaa07291ebcbf11fa
 	parent = fbc87fe929cdbb989daab38d30045900bfa351b6
 	method = merge
 	update = auto
