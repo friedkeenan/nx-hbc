@@ -31,6 +31,8 @@ static int g_apps_ll_len;
 
 static lv_img_dsc_t g_star_dscs[2] = {0}; // {small, big}
 
+static lv_style_t g_no_apps_mbox_style;
+
 static lv_obj_t *g_curr_focused_tmp = NULL;
 
 static lv_img_dsc_t g_list_dscs[2] = {0}; // {normal, hover}
@@ -65,10 +67,12 @@ static thrd_t g_remote_thread;
 static remote_loader_t *g_remote_loader;
 static lv_img_dsc_t g_remote_progress_img;
 static lv_style_t g_remote_bar_indic_style;
+static lv_style_t g_remote_error_mbox_style;
 static lv_obj_t *g_remote_cover = NULL;
 static lv_obj_t *g_remote_bar = NULL;
 static lv_obj_t *g_remote_name = NULL;
 static lv_obj_t *g_remote_percent = NULL;
+static lv_obj_t *g_remote_error_mbox = NULL;
 
 static lv_style_t g_transp_style;
 static lv_style_t g_dark_opa_64_style;
@@ -76,7 +80,6 @@ static lv_style_t g_white_48_style;
 static lv_style_t g_white_28_style;
 static lv_style_t g_white_22_style;
 static lv_style_t g_white_16_style;
-static lv_style_t g_no_apps_mbox_style;
 
 static const char *g_ok_btns[] = {"OK", ""};
 
@@ -375,7 +378,7 @@ static void list_button_event(lv_obj_t *obj, lv_event_t event) {
             lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, &g_list_dscs[1]);
             lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, &g_list_dscs[1]);
 
-            for (g_list_index = 0; g_list_index < MAX_LIST_ROWS; g_list_index++) {
+            for (g_list_index = 0; g_list_index < num_buttons(); g_list_index++) {
                 if (obj == g_list_buttons[g_list_index])
                     break;
             }
@@ -772,7 +775,7 @@ void setup_menu() {
     lv_style_copy(&g_white_16_style, &lv_style_plain);
     g_white_16_style.text.color = LV_COLOR_WHITE;
 
-    lv_style_copy(&g_no_apps_mbox_style, &lv_style_plain);
+    lv_style_copy(&g_no_apps_mbox_style, &lv_style_pretty);
     g_no_apps_mbox_style.body.main_color = LV_COLOR_BLACK;
     g_no_apps_mbox_style.body.grad_color = LV_COLOR_BLACK;
     g_no_apps_mbox_style.body.opa = 128;
@@ -854,23 +857,34 @@ void setup_menu() {
     draw_buttons();
 }
 
+static void remote_cover_event_cb(lv_obj_t *obj, lv_event_t event) {
+    switch (event) {
+        case LV_EVENT_DELETE:
+            g_remote_cover = NULL;
+            lv_group_focus_freeze(keypad_group(), false);
+
+            struct timespec sleep = {.tv_nsec = 100000000};
+            thrd_sleep(&sleep, NULL);
+
+            break;
+
+        case LV_EVENT_CLICKED:
+            remote_loader_set_cancel(g_remote_loader, true);
+            lv_obj_del(obj);
+            break;
+    }
+}
+
 static void remote_error_mbox_event_cb(lv_obj_t *obj, lv_event_t event) {
-    logPrintf("mbox error: event(%d)\n", event);
-    if (event == LV_EVENT_DELETE)
-        logPrintf("delete\n");
+    switch (event) {
+        case LV_EVENT_DELETE:
+            remote_loader_set_error(g_remote_loader, false);
+            g_remote_error_mbox = NULL;
+            break;
 
-    if (event == LV_EVENT_PRESSED) {
-        logPrintf("pressed\n");
-
-        u32 btn_id = lv_mbox_get_active_btn(obj);
-        logPrintf("btn_id(%u)\n", btn_id);
-
-        lv_obj_del(obj);
-        lv_obj_del(g_remote_cover);
-        g_remote_cover = NULL;
-
-        lv_group_focus_freeze(keypad_group(), false);
-        remote_loader_set_error(g_remote_loader, false);
+        case LV_EVENT_VALUE_CHANGED:
+            lv_obj_del(g_remote_cover);
+            break;
     }
 }
 
@@ -880,6 +894,7 @@ static void remote_progress_task(lv_task_t *task) {
             lv_group_focus_freeze(keypad_group(), true);
 
             g_remote_cover = lv_obj_create(lv_scr_act(), NULL);
+            lv_obj_set_event_cb(g_remote_cover, remote_cover_event_cb);
             lv_obj_set_size(g_remote_cover, LV_HOR_RES_MAX, LV_VER_RES_MAX);
             lv_obj_set_style(g_remote_cover, &g_dark_opa_64_style);
 
@@ -916,17 +931,17 @@ static void remote_progress_task(lv_task_t *task) {
         sprintf(percent, "%d%%", progress);
         lv_label_set_text(g_remote_percent, percent);
         lv_obj_align(g_remote_percent, NULL, LV_ALIGN_IN_BOTTOM_RIGHT, -10, -10);
-    } else if (remote_loader_get_error(g_remote_loader)) {
+    } else if (remote_loader_get_error(g_remote_loader) && g_remote_error_mbox == NULL) {
         lv_obj_clean(g_remote_cover);
 
-        lv_obj_t *mbox = lv_mbox_create(g_remote_cover, NULL);
-        lv_obj_set_width(mbox, LIST_BTN_W);
-        lv_obj_set_height(mbox, LIST_BTN_H);
-        lv_mbox_set_text(mbox, "An error has occured");
-        lv_mbox_add_btns(mbox, g_ok_btns);
-        lv_obj_align(mbox, NULL, LV_ALIGN_CENTER, 0, 0);
+        g_remote_error_mbox = lv_mbox_create(g_remote_cover, NULL);
+        lv_obj_set_style(g_remote_error_mbox, &g_remote_error_mbox_style);
+        lv_obj_set_width(g_remote_error_mbox, LIST_BTN_W + 40);
+        lv_mbox_set_text(g_remote_error_mbox, "An error has\noccured");
+        lv_mbox_add_btns(g_remote_error_mbox, g_ok_btns);
+        lv_obj_align(g_remote_error_mbox, NULL, LV_ALIGN_CENTER, 0, 0);
         
-        lv_obj_set_event_cb(mbox, remote_error_mbox_event_cb);
+        lv_obj_set_event_cb(g_remote_error_mbox, remote_error_mbox_event_cb);
     }
 }
 
@@ -961,6 +976,11 @@ void setup_misc() {
     lv_style_copy(&g_remote_bar_indic_style, &lv_style_plain);
     g_remote_bar_indic_style.body.main_color = lv_color_hex(0xc8e1ed);
     g_remote_bar_indic_style.body.grad_color = lv_color_hex(0x46c1ff);
+
+    lv_style_copy(&g_remote_error_mbox_style, &g_no_apps_mbox_style);
+    g_remote_error_mbox_style.body.main_color = lv_color_hex(0x333333);
+    g_remote_error_mbox_style.body.grad_color = lv_color_hex(0x333333);
+    g_remote_error_mbox_style.body.opa = LV_OPA_COVER;
 
     g_remote_loader = net_loader();
     thrd_create(&g_remote_thread, remote_loader_thread, g_remote_loader);

@@ -329,6 +329,16 @@ void remote_loader_set_error(remote_loader_t *r, bool error) {
     mtx_unlock(&r->mtx);
 }
 
+static bool remote_loader_get_cancel(remote_loader_t *r) {
+    bool flag;
+
+    mtx_lock(&r->mtx);
+    flag = r->flags & RemoteLoaderFlag_cancel;
+    mtx_unlock(&r->mtx);
+
+    return flag;
+}
+
 void remote_loader_set_cancel(remote_loader_t *r, bool cancel) {
     mtx_lock(&r->mtx);
     if (cancel)
@@ -405,7 +415,7 @@ int remote_loader_thread(void *arg) {
         logPrintf("loop\n");
         struct timespec loop_sleep = {.tv_nsec = 100000000};
 
-        while ((r->loop_cb(r) != LV_RES_OK) && !remote_loader_get_exit(r))
+        while ((remote_loader_get_error(r) || (r->loop_cb(r) != LV_RES_OK)) && !remote_loader_get_exit(r))
             thrd_sleep(&loop_sleep, NULL);
 
         logPrintf("loop done\n");
@@ -416,8 +426,6 @@ int remote_loader_thread(void *arg) {
                 app_entry_load(&r->entry);
                 break;
             } else {
-                logPrintf("error\n");
-                remote_loader_set_error(r, true);
                 remote_loader_set_activated(r, false);
 
                 if (r->error_cb != NULL)
@@ -427,6 +435,11 @@ int remote_loader_thread(void *arg) {
                 r->total = 0;
                 r->current = 0;
                 mtx_unlock(&r->mtx);
+
+                if (remote_loader_get_cancel(r))
+                    remote_loader_set_cancel(r, false);
+                else
+                    remote_loader_set_error(r, true);
             }
         } else {
             break;
