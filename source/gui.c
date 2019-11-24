@@ -11,6 +11,7 @@
 #include "apps.h"
 #include "remote.h"
 #include "remote_net.h"
+#include "limitations.h"
 #include "util.h"
 
 enum {
@@ -80,6 +81,7 @@ static lv_style_t g_white_48_style;
 static lv_style_t g_white_28_style;
 static lv_style_t g_white_22_style;
 static lv_style_t g_white_16_style;
+static lv_style_t g_red_48_style;
 
 static const char *g_ok_btns[] = {"OK", ""};
 
@@ -285,7 +287,7 @@ static void dialog_button_event(lv_obj_t *obj, lv_event_t event) {
 
 static void draw_app_dialog() {
     g_curr_focused_tmp = g_list_buttons[g_list_index];
-    lv_event_send(g_list_buttons[g_list_index], LV_EVENT_DEFOCUSED, NULL);
+    lv_event_send(g_curr_focused_tmp, LV_EVENT_DEFOCUSED, NULL);
     lv_group_remove_all_objs(keypad_group());
 
     g_dialog_cover = lv_obj_create(lv_scr_act(), NULL);
@@ -366,7 +368,7 @@ static void list_button_event(lv_obj_t *obj, lv_event_t event) {
         return;
 
     // Covers also use this event so make sure the object we use is the button
-    for (int i = 0; i < MAX_LIST_ROWS; i++) {
+    for (int i = 0; i < num_buttons(); i++) {
         if (obj == g_list_covers[i]) {
             obj = g_list_buttons[i];
             break;
@@ -382,6 +384,8 @@ static void list_button_event(lv_obj_t *obj, lv_event_t event) {
                 if (obj == g_list_buttons[g_list_index])
                     break;
             }
+
+            logPrintf("focus g_list_index(%d)\n", g_list_index);
         } break;
 
         case LV_EVENT_DEFOCUSED: {
@@ -405,6 +409,8 @@ static void list_button_event(lv_obj_t *obj, lv_event_t event) {
                 case LV_KEY_LEFT:
                     lv_group_focus_obj(g_arrow_buttons[1]);
                     return;
+                default:
+                    return;
             }
 
             if (g_list_index >= num_buttons())
@@ -412,6 +418,7 @@ static void list_button_event(lv_obj_t *obj, lv_event_t event) {
             else if (g_list_index < 0)
                 g_list_index = num_buttons() - 1;
 
+            logPrintf("key g_list_index(%d), new focus(%p)\n", g_list_index, g_list_buttons[g_list_index]);
             lv_group_focus_obj(g_list_buttons[g_list_index]);
         } break;
 
@@ -590,7 +597,6 @@ static void arrow_ready_cb(lv_anim_t *anim) {
 
         lv_obj_del(g_arrow_buttons[del_idx]);
         g_arrow_buttons[del_idx] = NULL;
-        //lv_group_focus_obj(g_list_buttons[0]);
     }
 
     lv_anim_clear_playback(&g_page_arrow_anims[idx]);
@@ -774,6 +780,10 @@ void setup_menu() {
 
     lv_style_copy(&g_white_16_style, &lv_style_plain);
     g_white_16_style.text.color = LV_COLOR_WHITE;
+
+    lv_style_copy(&g_red_48_style, &lv_style_plain);
+    g_red_48_style.text.font = &lv_font_roboto_48;
+    g_red_48_style.text.color = LV_COLOR_RED;
 
     lv_style_copy(&g_no_apps_mbox_style, &lv_style_pretty);
     g_no_apps_mbox_style.body.main_color = LV_COLOR_BLACK;
@@ -987,6 +997,13 @@ void setup_misc() {
 
     lv_task_t *task = lv_task_create(remote_progress_task, 5, LV_TASK_PRIO_MID, NULL);
     lv_task_ready(task);
+
+    if (has_limitations()) {
+        lv_obj_t *warn = lv_label_create(lv_scr_act(), NULL);
+        lv_label_set_text(warn, LIMITATIONS_TEXT);
+        lv_obj_set_style(warn, &g_red_48_style);
+        lv_obj_align(warn, NULL, LV_ALIGN_IN_BOTTOM_MID, 0, -20);
+    }
 }
 
 void gui_exit() {
