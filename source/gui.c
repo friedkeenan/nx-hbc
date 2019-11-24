@@ -93,10 +93,6 @@ static void gen_apps_list() {
     g_apps_ll_len = lv_ll_get_len(&g_apps_ll);
 }
 
-static inline bool page_anim_running() {
-    return g_page_list_anim_running || g_page_arrow_anim_running;
-}
-
 static inline int num_buttons() {
     return fmin(g_apps_ll_len - MAX_LIST_ROWS * g_curr_page, MAX_LIST_ROWS);
 }
@@ -384,8 +380,6 @@ static void list_button_event(lv_obj_t *obj, lv_event_t event) {
                 if (obj == g_list_buttons[g_list_index])
                     break;
             }
-
-            logPrintf("focus g_list_index(%d)\n", g_list_index);
         } break;
 
         case LV_EVENT_DEFOCUSED: {
@@ -418,7 +412,6 @@ static void list_button_event(lv_obj_t *obj, lv_event_t event) {
             else if (g_list_index < 0)
                 g_list_index = num_buttons() - 1;
 
-            logPrintf("key g_list_index(%d), new focus(%p)\n", g_list_index, g_list_buttons[g_list_index]);
             lv_group_focus_obj(g_list_buttons[g_list_index]);
         } break;
 
@@ -433,8 +426,6 @@ static void list_button_event(lv_obj_t *obj, lv_event_t event) {
 
 static void arrow_button_event(lv_obj_t *obj, lv_event_t event) {
     if (keypad_group()->frozen)
-        return;
-    if (page_anim_running() && (event != LV_EVENT_FOCUSED && event != LV_EVENT_DEFOCUSED))
         return;
 
     switch (event) {
@@ -634,6 +625,8 @@ static void change_page(int dir) {
     g_curr_page += dir;
     for (int i = 0; i < num_buttons(); i++) {
         g_list_buttons_tmp[i] = lv_imgbtn_create(anim_objs[i], g_list_buttons[0]);
+        g_list_buttons_tmp[i]->group_p = keypad_group(); // Needed because sometimes the group_p member is set to NULL even though the copied object's isn't
+
         g_list_covers_tmp[i] = lv_obj_create(g_list_buttons_tmp[i], g_list_covers[0]);
 
         if (i > 0)
@@ -701,7 +694,7 @@ static void draw_buttons() {
     g_list_covers[0] = lv_obj_create(g_list_buttons[0], NULL);
     lv_obj_set_event_cb(g_list_covers[0], list_button_event);
     lv_obj_set_style(g_list_covers[0], &g_transp_style);
-    lv_obj_set_size(g_list_covers[0], lv_obj_get_width(g_list_buttons[0]), lv_obj_get_height(g_list_buttons[0]));
+    lv_obj_set_size(g_list_covers[0], LIST_BTN_W, LIST_BTN_H);
 
     app_entry_t *entry = get_app_for_button(0);
     app_entry_init_icon(entry);
