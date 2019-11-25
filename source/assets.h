@@ -37,6 +37,8 @@ typedef enum {
     AssetId_button_tiny,
     AssetId_button_tiny_focus,
     AssetId_remote_progress,
+    AssetId_network_inactive,
+    AssetId_network_active,
 
     AssetId_Max
 } AssetId;

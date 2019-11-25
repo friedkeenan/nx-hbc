@@ -12,6 +12,7 @@
 #include "remote.h"
 #include "remote_net.h"
 #include "limitations.h"
+#include "net_status.h"
 #include "util.h"
 
 enum {
@@ -74,6 +75,9 @@ static lv_obj_t *g_remote_bar = NULL;
 static lv_obj_t *g_remote_name = NULL;
 static lv_obj_t *g_remote_percent = NULL;
 static lv_obj_t *g_remote_error_mbox = NULL;
+
+static lv_img_dsc_t g_network_icons[2] = {0}; // Inactive, active
+static lv_obj_t *g_net_icon = NULL;
 
 static lv_style_t g_transp_style;
 static lv_style_t g_dark_opa_64_style;
@@ -948,6 +952,30 @@ static void remote_progress_task(lv_task_t *task) {
     }
 }
 
+static void net_icon_task(lv_task_t *task) {
+    NetStatus status = get_net_status();
+
+    switch (status) {
+        case NetStatus_disconnected: {
+            lv_img_set_src(g_net_icon, &g_network_icons[0]);
+        } break;
+
+        case NetStatus_connected: {
+            lv_img_set_src(g_net_icon, &g_network_icons[1]);
+        } break;
+
+        case NetStatus_connecting: {
+            const lv_img_dsc_t *src = ((lv_img_ext_t *) lv_obj_get_ext_attr(g_net_icon))->src;
+
+            if (src == &g_network_icons[0])
+                lv_img_set_src(g_net_icon, &g_network_icons[1]);
+            else
+                lv_img_set_src(g_net_icon, &g_network_icons[0]);
+
+        } break;
+    }
+}
+
 void setup_misc() {
     u8 *data;
     size_t size;
@@ -985,6 +1013,8 @@ void setup_misc() {
     g_remote_error_mbox_style.body.grad_color = lv_color_hex(0x333333);
     g_remote_error_mbox_style.body.opa = LV_OPA_COVER;
 
+    net_status_init();
+
     g_remote_loader = net_loader();
     thrd_create(&g_remote_thread, remote_loader_thread, g_remote_loader);
 
@@ -997,10 +1027,29 @@ void setup_misc() {
         lv_obj_set_style(warn, &g_red_48_style);
         lv_obj_align(warn, NULL, LV_ALIGN_IN_BOTTOM_MID, 0, -20);
     }
+
+    for(int i = 0; i < 2; i++) {
+        assetsGetData(AssetId_network_inactive + i, &data, &size);
+        g_network_icons[i] = (lv_img_dsc_t) {
+            .header.always_zero = 0,
+            .header.w = NETWORK_ICON_W,
+            .header.h = NETWORK_ICON_H,
+            .data_size = size,
+            .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
+            .data = data,
+        };
+    }
+
+    g_net_icon = lv_img_create(lv_scr_act(), NULL);
+    lv_obj_align(g_net_icon, NULL, LV_ALIGN_IN_BOTTOM_RIGHT, -10, -10);
+
+    task = lv_task_create(net_icon_task, 1000, LV_TASK_PRIO_MID, NULL);
+    lv_task_ready(task);
 }
 
 void gui_exit() {
     remote_loader_set_exit(g_remote_loader);
     logPrintf("thrd_join\n");
     thrd_join(g_remote_thread, NULL);
+    net_status_exit();
 }

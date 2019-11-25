@@ -32,6 +32,9 @@
 #define REMOTE_PROGRESS_INNER_W 480
 #define REMOTE_PROGRESS_INNER_H 60
 
+#define NETWORK_ICON_W 48
+#define NETWORK_ICON_H 48
+
 void setup_screen();
 void setup_menu();
 void setup_misc();

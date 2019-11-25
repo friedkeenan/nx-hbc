@@ -47,6 +47,7 @@
 
 #include "apps.h"
 #include "log.h"
+#include "net_status.h"
 #include "remote.h"
 #include "remote_net.h"
 
@@ -64,7 +65,9 @@
 
 typedef struct {
     #if PING_ENABLED
+
     int udpfd;
+
     #endif
 
     int listenfd;
@@ -84,32 +87,13 @@ static int set_nonblocking(int fd) {
 }
 
 static lv_res_t net_init_cb(remote_loader_t *r) {
-    if (R_FAILED(socketInitializeDefault())) {
+    if (get_net_status() != NetStatus_connected)
         return LV_RES_INV;
-    }
 
-    if (R_FAILED(nifmInitialize())) {
-        socketExit();
+    if (R_FAILED(socketInitializeDefault()))
         return LV_RES_INV;
-    }
 
-    NifmInternetConnectionType conn_type;
-    u32 conn_strength = 0;
-    NifmInternetConnectionStatus conn_status;
-
-    if (R_FAILED(nifmGetInternetConnectionStatus(&conn_type, &conn_strength, &conn_status))) {
-        nifmExit();
-        socketExit();
-        return LV_RES_INV;
-    }
-    nifmExit();
-
-    if (conn_strength == 0) {
-        socketExit();
-        return LV_RES_INV;
-    }
-
-    r->custom_data = malloc(sizeof(net_data_t));
+    r->custom_data = lv_mem_alloc(sizeof(net_data_t));
     net_data_t *data = r->custom_data;
 
     struct sockaddr_in serv_addr;
@@ -123,21 +107,21 @@ static lv_res_t net_init_cb(remote_loader_t *r) {
 
     data->udpfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (data->udpfd < 0) {
-        free(data);
+        lv_mem_free(data);
         socketExit();
         return LV_RES_INV;
     }
 
     if (bind(data->udpfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
         close(data->connfd);
-        free(data);
+        lv_mem_free(data);
         socketExit();
         return LV_RES_INV;
     }
 
     if (set_nonblocking(data->udpfd) == -1) {
         close(data->udpfd);
-        free(data);
+        lv_mem_free(data);
         socketExit();
         return LV_RES_INV;
     }
@@ -152,7 +136,7 @@ static lv_res_t net_init_cb(remote_loader_t *r) {
 
         #endif
 
-        free(data);
+        lv_mem_free(data);
         socketExit();
         return LV_RES_INV;
     }
@@ -165,7 +149,7 @@ static lv_res_t net_init_cb(remote_loader_t *r) {
         #endif
 
         close(data->listenfd);
-        free(data);
+        lv_mem_free(data);
         socketExit();
         return LV_RES_INV;
     }
@@ -178,7 +162,7 @@ static lv_res_t net_init_cb(remote_loader_t *r) {
         #endif
 
         close(data->listenfd);
-        free(data);
+        lv_mem_free(data);
         socketExit();
         return LV_RES_INV;
     }
@@ -191,7 +175,7 @@ static lv_res_t net_init_cb(remote_loader_t *r) {
         #endif
 
         close(data->listenfd);
-        free(data);
+        lv_mem_free(data);
         socketExit();
         return LV_RES_INV;
     }
@@ -219,7 +203,7 @@ static void net_exit_cb(remote_loader_t *r) {
 
     socketExit();
 
-    free(data);
+    lv_mem_free(data);
 }
 
 static void net_error_cb(remote_loader_t *r) {

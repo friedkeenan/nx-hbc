@@ -48,6 +48,8 @@ assetsDataEntry g_assetsDataList[AssetId_Max] = {
     GENASSET("button_tiny.bin"),
     GENASSET("button_tiny_focus.bin"),
     GENASSET("remote_progress.bin"),
+    GENASSET("network_inactive.bin"),
+    GENASSET("network_active.bin"),
 };
 
 static void assetsClearEntry(assetsDataEntry *entry) {
