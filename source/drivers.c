@@ -5,6 +5,7 @@
 #include "drivers.h"
 #include "log.h"
 #include "assets.h"
+#include "settings.h"
 
 static Framebuffer g_framebuffer;
 static lv_disp_buf_t g_disp_buf;
@@ -198,62 +199,63 @@ void driversInitialize() {
     keypad_drv.read_cb = keypad_cb;
     g_keypad_indev = lv_indev_drv_register(&keypad_drv);
     logPrintf("g_keypad_indev(%p)\n", g_keypad_indev);
-    g_keypad_indev->proc.disabled = true;
 
     g_keypad_group = lv_group_create();
     lv_indev_set_group(g_keypad_indev, g_keypad_group);
-    
-    lv_indev_drv_t pointer_drv;
-    lv_indev_drv_init(&pointer_drv);
-    pointer_drv.type = LV_INDEV_TYPE_POINTER;
-    pointer_drv.read_cb = gyro_cb;
-    g_gyro_indev = lv_indev_drv_register(&pointer_drv);
-    logPrintf("g_gyro_indev(%p)\n", g_gyro_indev);
 
-    g_pointer_canvas = lv_canvas_create(lv_scr_act(), NULL);
-    lv_canvas_set_buffer(g_pointer_canvas, g_pointer_buf, 96,96, LV_IMG_CF_TRUE_COLOR_ALPHA);
-    g_pointer_fake_canvas = lv_canvas_create(lv_scr_act(), NULL);
-    lv_indev_set_cursor(g_gyro_indev, g_pointer_fake_canvas); // Set cursor to fake canvas for centering click and rotating cursor
-    lv_obj_set_parent(g_pointer_canvas, lv_layer_sys()); // Set the real cursor to the system layer where the cursor should be drawn
-    lv_obj_set_opa_scale_enable(g_pointer_canvas, true);
+    if (curr_settings()->use_gyro) {
+        lv_indev_drv_t pointer_drv;
+        lv_indev_drv_init(&pointer_drv);
+        pointer_drv.type = LV_INDEV_TYPE_POINTER;
+        pointer_drv.read_cb = gyro_cb;
+        g_gyro_indev = lv_indev_drv_register(&pointer_drv);
+        logPrintf("g_gyro_indev(%p)\n", g_gyro_indev);
 
-    if (hidGetHandheldMode()) {
-        g_gyro_indev->proc.disabled = true;
-        g_keypad_indev->proc.disabled = false;
+        g_pointer_canvas = lv_canvas_create(lv_scr_act(), NULL);
+        lv_canvas_set_buffer(g_pointer_canvas, g_pointer_buf, 96,96, LV_IMG_CF_TRUE_COLOR_ALPHA);
+        g_pointer_fake_canvas = lv_canvas_create(lv_scr_act(), NULL);
+        lv_indev_set_cursor(g_gyro_indev, g_pointer_fake_canvas); // Set cursor to fake canvas for centering click and rotating cursor
+        lv_obj_set_parent(g_pointer_canvas, lv_layer_sys()); // Set the real cursor to the system layer where the cursor should be drawn
+        lv_obj_set_opa_scale_enable(g_pointer_canvas, true);
 
-        g_clear_pointer_canvas = false;
-        lv_obj_set_opa_scale(g_pointer_canvas, LV_OPA_TRANSP);
+        if (hidGetHandheldMode()) {
+            g_gyro_indev->proc.disabled = true;
+            g_keypad_indev->proc.disabled = false;
+
+            g_clear_pointer_canvas = false;
+            lv_obj_set_opa_scale(g_pointer_canvas, LV_OPA_TRANSP);
+        }
+
+        lv_task_t * handheld_check = lv_task_create(handheld_changed_task, 500, LV_TASK_PRIO_MID, NULL);
+        lv_task_ready(handheld_check);
+        
+        // Cursor asset
+        u8 *data;
+        size_t size;
+        assetsGetData(AssetId_cursor, &data, &size);
+        g_pointer_img = (lv_img_dsc_t) {
+            .header.always_zero = 0,
+            .header.w = 96,
+            .header.h = 96,
+            .data_size = size,
+            .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
+            .data = data,
+        };
+        
+        // Get handles for sixaxis
+        hidGetSixAxisSensorHandles(&g_sixaxis_handles[0], 2, CONTROLLER_PLAYER_1, TYPE_JOYCON_PAIR);
+        hidGetSixAxisSensorHandles(&g_sixaxis_handles[2], 1, CONTROLLER_PLAYER_1, TYPE_PROCONTROLLER);
+        hidGetSixAxisSensorHandles(&g_sixaxis_handles[3], 1, CONTROLLER_HANDHELD, TYPE_HANDHELD);
+        hidStartSixAxisSensor(g_sixaxis_handles[0]);
+        hidStartSixAxisSensor(g_sixaxis_handles[1]);
+        hidStartSixAxisSensor(g_sixaxis_handles[2]);
+        hidStartSixAxisSensor(g_sixaxis_handles[3]);
+        
+        // Ideally scan for input here and set the zero
+        g_gyro_center.x = 0;
+        g_gyro_center.y = 0;
+        g_gyro_center.z = 1;
     }
-
-    lv_task_t * handheld_check = lv_task_create(handheld_changed_task, 500, LV_TASK_PRIO_MID, NULL);
-    lv_task_ready(handheld_check);
-    
-    // Cursor asset
-    u8 *data;
-    size_t size;
-    assetsGetData(AssetId_cursor, &data, &size);
-    g_pointer_img = (lv_img_dsc_t) {
-        .header.always_zero = 0,
-        .header.w = 96,
-        .header.h = 96,
-        .data_size = size,
-        .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
-        .data = data,
-    };
-    
-    // Get handles for sixaxis
-    hidGetSixAxisSensorHandles(&g_sixaxis_handles[0], 2, CONTROLLER_PLAYER_1, TYPE_JOYCON_PAIR);
-    hidGetSixAxisSensorHandles(&g_sixaxis_handles[2], 1, CONTROLLER_PLAYER_1, TYPE_PROCONTROLLER);
-    hidGetSixAxisSensorHandles(&g_sixaxis_handles[3], 1, CONTROLLER_HANDHELD, TYPE_HANDHELD);
-    hidStartSixAxisSensor(g_sixaxis_handles[0]);
-    hidStartSixAxisSensor(g_sixaxis_handles[1]);
-    hidStartSixAxisSensor(g_sixaxis_handles[2]);
-    hidStartSixAxisSensor(g_sixaxis_handles[3]);
-    
-    // Ideally scan for input here and set the zero
-    g_gyro_center.x = 0;
-    g_gyro_center.y = 0;
-    g_gyro_center.z = 1;
 }
 
 void driversExit() {

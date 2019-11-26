@@ -13,6 +13,7 @@
 #include "remote_net.h"
 #include "limitations.h"
 #include "net_status.h"
+#include "settings.h"
 #include "util.h"
 
 enum {
@@ -598,6 +599,7 @@ static void arrow_ready_cb(lv_anim_t *anim) {
 }
 
 static void change_page(int dir) {
+    logPrintf("change_page start\n");
     g_page_list_anim_running = true;
     g_page_arrow_anim_running = true;
 
@@ -668,6 +670,7 @@ static void change_page(int dir) {
         
         lv_anim_create(&g_page_arrow_anims[i]);
     }
+    logPrintf("change_page end\n");
 }
 
 static void draw_buttons() {
@@ -1015,13 +1018,17 @@ void setup_misc() {
 
     net_status_init();
 
-    g_remote_loader = net_loader();
-    thrd_create(&g_remote_thread, remote_loader_thread, g_remote_loader);
+    if (curr_settings()->remote_type != RemoteLoaderType_disabled) {
+        if (curr_settings()->remote_type == RemoteLoaderType_net)
+            g_remote_loader = net_loader();
 
-    lv_task_t *task = lv_task_create(remote_progress_task, 5, LV_TASK_PRIO_MID, NULL);
-    lv_task_ready(task);
+        thrd_create(&g_remote_thread, remote_loader_thread, g_remote_loader);
 
-    if (has_limitations()) {
+        lv_task_t *task = lv_task_create(remote_progress_task, 5, LV_TASK_PRIO_MID, NULL);
+        lv_task_ready(task);
+    }
+
+    if (curr_settings()->show_limit_warn && has_limitations()) {
         lv_obj_t *warn = lv_label_create(lv_scr_act(), NULL);
         lv_label_set_text(warn, LIMITATIONS_TEXT);
         lv_obj_set_style(warn, &g_red_48_style);
@@ -1043,13 +1050,15 @@ void setup_misc() {
     g_net_icon = lv_img_create(lv_scr_act(), NULL);
     lv_obj_align(g_net_icon, NULL, LV_ALIGN_IN_BOTTOM_RIGHT, -10, -10);
 
-    task = lv_task_create(net_icon_task, 1000, LV_TASK_PRIO_MID, NULL);
+    lv_task_t *task = lv_task_create(net_icon_task, 1000, LV_TASK_PRIO_MID, NULL);
     lv_task_ready(task);
 }
 
 void gui_exit() {
-    remote_loader_set_exit(g_remote_loader);
-    logPrintf("thrd_join\n");
-    thrd_join(g_remote_thread, NULL);
+    if (curr_settings()->remote_type != RemoteLoaderType_disabled) {
+        remote_loader_set_exit(g_remote_loader);
+        logPrintf("thrd_join\n");
+        thrd_join(g_remote_thread, NULL);
+    }
     net_status_exit();
 }

@@ -45,10 +45,10 @@
 
 #include "remote.h"
 #include "log.h"
-#include "config.h"
+#include "settings.h"
 #include "util.h"
 
-#define TMP_APP_PATH CONFIG_DIR "/tmp_remote.nro"
+#define TMP_APP_PATH SETTINGS_DIR "/tmp_remote.nro"
 
 static bool remote_loader_end_recv(remote_loader_t *r);
 

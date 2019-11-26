@@ -64,7 +64,7 @@ CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
-LIBS	:= -lnx -lminizip -lz -lturbojpeg -lm
+LIBS	:= -lnx -lminizip -lz -lturbojpeg -lm -lconfig
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
@@ -221,7 +221,7 @@ $(ROMFSABS):
 
 $(ASSETS)	:	$(RESOURCES)
 	@rm -rf $@
-	@python3 $(TOPDIR)/gen_assets.py $(RESOURCES) $(ASSETS)
+	@python3 $(TOPDIR)/tools/gen_assets.py $(RESOURCES) $(ASSETS)
 
 $(ROMFSABS)/assets.zip	:	$(ROMFSABS) $(ASSETS)
 	@rm -f $@
