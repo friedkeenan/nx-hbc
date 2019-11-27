@@ -5,7 +5,7 @@ import zipfile
 from PIL import Image
 from pathlib import Path
 
-def add_resource_to_theme(zf, path, new_path):
+def add_asset_to_theme(zf, path, new_path):
     im = Image.open(path).convert("RGBA")
 
     # Convert to BGRA
@@ -32,4 +32,8 @@ if __name__ == "__main__":
 
     with zipfile.ZipFile(theme_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for p in res_dir.iterdir():
-            add_resource_to_theme(zf, p, f"{p.stem}.bin")
+            if p.suffix == ".cfg":
+                with p.open("r") as f:
+                    zf.writestr(p.name, f.read())
+            else:
+                add_asset_to_theme(zf, p, f"{p.stem}.bin")

@@ -18,6 +18,7 @@
  */
 
 #include <minizip/unzip.h>
+#include <libconfig.h>
 #include <lvgl/lvgl.h>
 #include <switch.h>
 
@@ -27,6 +28,8 @@
 
 #define DEFAULT_THEME_PATH "romfs:/theme.zip"
 #define THEME_PATH SETTINGS_DIR "/theme.zip"
+
+#define STYLES_PATH "styles.cfg"
 
 #define GEN_ASSET(x) {.file_name = x}
 
@@ -80,6 +83,18 @@ static asset_t g_assets_list[AssetId_max] = {
 
 static theme_t g_curr_theme;
 
+static int config_setting_lookup_color(config_setting_t *setting, const char *name, lv_color_t *value) {
+    int tmp_col;
+
+    int ret = config_setting_lookup_int(setting, name, &tmp_col);
+    if (ret != CONFIG_TRUE)
+        return ret;
+
+    *value = lv_color_hex(tmp_col);
+
+    return ret;
+}
+
 static int asset_load(asset_t *asset, unzFile zf) {
     int ret = unzLocateFile(zf, asset->file_name, 0);
     if (ret != UNZ_OK)
@@ -128,7 +143,7 @@ static void asset_to_img_dsc(lv_img_dsc_t *dsc, asset_t *assets, AssetId id, u32
     dsc->data = asset->buffer;
 }
 
-static void load_theme_assets(theme_t *theme, asset_t *assets) {
+static void theme_load_assets(theme_t *theme, asset_t *assets) {
     asset_to_img_dsc(&theme->background_dsc, assets, AssetId_background, LV_HOR_RES_MAX, LV_VER_RES_MAX);
 
     asset_to_img_dsc(&theme->star_dscs[0], assets, AssetId_star_small, STAR_SMALL_W, STAR_SMALL_H);
@@ -153,6 +168,104 @@ static void load_theme_assets(theme_t *theme, asset_t *assets) {
     asset_to_img_dsc(&theme->remote_progress_dsc, assets, AssetId_remote_progress, REMOTE_PROGRESS_W, REMOTE_PROGRESS_H);
 
     asset_to_img_dsc(&theme->cursor_dsc, assets, AssetId_cursor, CURSOR_W, CURSOR_H);
+}
+
+static void theme_init_styles(theme_t *theme) {
+    lv_style_copy(&theme->no_apps_mbox_style, &lv_style_pretty);
+    theme->no_apps_mbox_style.body.opa = 128;
+    theme->no_apps_mbox_style.text.font = &lv_font_roboto_48;
+
+    lv_style_copy(&theme->remote_bar_indic_style, &lv_style_plain);
+
+    lv_style_copy(&theme->remote_error_mbox_style, &theme->no_apps_mbox_style);
+    theme->remote_error_mbox_style.body.opa = LV_OPA_COVER;
+
+    lv_style_copy(&theme->dark_opa_64_style, &lv_style_plain);
+    theme->dark_opa_64_style.body.opa = 64;
+
+    lv_style_copy(&theme->normal_16_style, &lv_style_plain);
+
+    lv_style_copy(&theme->normal_22_style, &lv_style_plain);
+    theme->normal_22_style.text.font = &lv_font_roboto_22;
+
+    lv_style_copy(&theme->normal_28_style, &lv_style_plain);
+    theme->normal_28_style.text.font = &lv_font_roboto_28;
+
+    lv_style_copy(&theme->normal_48_style, &lv_style_plain);
+    theme->normal_48_style.text.font = &lv_font_roboto_48;
+
+    lv_style_copy(&theme->warn_48_style, &theme->normal_48_style);
+}
+
+static lv_res_t theme_load_styles(theme_t *theme, unzFile zf) {
+    if (zf == NULL)
+        return LV_RES_INV;
+
+    if (unzLocateFile(zf, STYLES_PATH, 0) != UNZ_OK)
+        return LV_RES_INV;
+
+    if (unzOpenCurrentFile(zf) != UNZ_OK)
+        return LV_RES_INV;
+
+    unz_file_info file_info;
+    if (unzGetCurrentFileInfo(zf, &file_info, NULL, 0, NULL, 0, NULL, 0) != UNZ_OK) {
+        unzCloseCurrentFile(zf);
+        return LV_RES_INV;
+    }
+
+    char cfg_str[file_info.uncompressed_size + 1];
+    if (unzReadCurrentFile(zf, cfg_str, file_info.uncompressed_size) < file_info.uncompressed_size) {
+        unzCloseCurrentFile(zf);
+        return LV_RES_INV;
+    }
+
+    unzCloseCurrentFile(zf);
+
+    cfg_str[file_info.uncompressed_size] = '\0';
+
+    config_t cfg;
+    config_setting_t *styles;
+
+    config_init(&cfg);
+    if (config_read_string(&cfg, cfg_str) != CONFIG_TRUE || (styles = config_lookup(&cfg, "styles")) == NULL) {
+        config_destroy(&cfg);
+        return LV_RES_INV;
+    }
+
+    lv_color_t tmp_col;
+
+    config_setting_lookup_color(styles, "no_apps_mbox_bg_color", &tmp_col);
+    theme->no_apps_mbox_style.body.main_color = tmp_col;
+    theme->no_apps_mbox_style.body.grad_color = tmp_col;
+
+    config_setting_lookup_color(styles, "remote_error_mbox_color", &tmp_col);
+    theme->remote_error_mbox_style.body.main_color = tmp_col;
+    theme->remote_error_mbox_style.body.grad_color = tmp_col;
+
+    config_setting_lookup_color(styles, "remote_bar_main_color", &tmp_col);
+    theme->remote_bar_indic_style.body.main_color = tmp_col;
+
+    config_setting_lookup_color(styles, "remote_bar_grad_color", &tmp_col);
+    theme->remote_bar_indic_style.body.grad_color = tmp_col;
+
+    config_setting_lookup_color(styles, "dark_cover_color", &tmp_col);
+    theme->dark_opa_64_style.body.main_color = tmp_col;
+    theme->dark_opa_64_style.body.grad_color = tmp_col;
+
+    config_setting_lookup_color(styles, "normal_text_color", &tmp_col);
+    theme->normal_16_style.text.color = tmp_col;
+    theme->normal_22_style.text.color = tmp_col;
+    theme->normal_28_style.text.color = tmp_col;
+    theme->normal_48_style.text.color = tmp_col;
+    theme->no_apps_mbox_style.text.color = tmp_col;
+    theme->remote_error_mbox_style.text.color = tmp_col;
+
+    config_setting_lookup_color(styles, "warn_text_color", &tmp_col);
+    theme->warn_48_style.text.color = tmp_col;
+
+    config_destroy(&cfg);
+
+    return LV_RES_OK;
 }
 
 lv_res_t theme_init() {
@@ -193,6 +306,10 @@ lv_res_t theme_init() {
         return LV_RES_INV;
     }
 
+    theme_init_styles(&g_curr_theme);
+    theme_load_styles(&g_curr_theme, zf_default);
+    theme_load_styles(&g_curr_theme, zf);
+
     if (zf != NULL)
         unzClose(zf);
 
@@ -201,9 +318,9 @@ lv_res_t theme_init() {
 
     romfsExit();
 
-    load_theme_assets(&g_curr_theme, g_assets_list);
+    theme_load_assets(&g_curr_theme, g_assets_list);
 
-    return LV_RES_INV;
+    return LV_RES_OK;
 }
 
 void theme_exit() {

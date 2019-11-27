@@ -30,8 +30,6 @@ enum {
 static lv_ll_t g_apps_ll;
 static int g_apps_ll_len;
 
-static lv_style_t g_no_apps_mbox_style;
-
 static lv_obj_t *g_curr_focused_tmp = NULL;
 
 static lv_obj_t *g_list_buttons[MAX_LIST_ROWS] = {0};
@@ -58,8 +56,6 @@ static bool g_page_arrow_anim_running = false;
 
 static thrd_t g_remote_thread;
 static remote_loader_t *g_remote_loader;
-static lv_style_t g_remote_bar_indic_style;
-static lv_style_t g_remote_error_mbox_style;
 static lv_obj_t *g_remote_cover = NULL;
 static lv_obj_t *g_remote_bar = NULL;
 static lv_obj_t *g_remote_name = NULL;
@@ -69,12 +65,6 @@ static lv_obj_t *g_remote_error_mbox = NULL;
 static lv_obj_t *g_net_icon = NULL;
 
 static lv_style_t g_transp_style;
-static lv_style_t g_dark_opa_64_style;
-static lv_style_t g_white_48_style;
-static lv_style_t g_white_28_style;
-static lv_style_t g_white_22_style;
-static lv_style_t g_white_16_style;
-static lv_style_t g_red_48_style;
 
 static const char *g_ok_btns[] = {"OK", ""};
 
@@ -280,7 +270,7 @@ static void draw_app_dialog() {
     lv_group_remove_all_objs(keypad_group());
 
     g_dialog_cover = lv_obj_create(lv_scr_act(), NULL);
-    lv_obj_set_style(g_dialog_cover, &g_dark_opa_64_style);
+    lv_obj_set_style(g_dialog_cover, &curr_theme()->dark_opa_64_style);
     lv_obj_set_size(g_dialog_cover, LV_HOR_RES_MAX, LV_VER_RES_MAX);
 
     lv_obj_t *dialog_bg = lv_img_create(g_dialog_cover, NULL);
@@ -291,7 +281,7 @@ static void draw_app_dialog() {
     g_dialog_entry = get_app_for_button(g_list_index);
 
     lv_obj_t *name = lv_label_create(dialog_bg, NULL);
-    lv_obj_set_style(name, &g_white_48_style);
+    lv_obj_set_style(name, &curr_theme()->normal_48_style);
     lv_label_set_static_text(name, g_dialog_entry->name);
     lv_obj_align(name, NULL, LV_ALIGN_IN_TOP_MID, 0, 20);
 
@@ -309,7 +299,7 @@ static void draw_app_dialog() {
     sprintf(version_text, "Version: %s", g_dialog_entry->version);
 
     lv_obj_t *ver = lv_label_create(dialog_bg, NULL);
-    lv_obj_set_style(ver, &g_white_28_style);
+    lv_obj_set_style(ver, &curr_theme()->normal_28_style);
     lv_label_set_text(ver, version_text);
     lv_obj_align(ver, icon, LV_ALIGN_OUT_RIGHT_TOP, 20, 20);
 
@@ -330,7 +320,7 @@ static void draw_app_dialog() {
     lv_obj_t *button_labels[DialogButton_max];
 
     button_labels[0] = lv_label_create(g_dialog_buttons[0], NULL);
-    lv_obj_set_style(button_labels[0], &g_white_28_style);
+    lv_obj_set_style(button_labels[0], &curr_theme()->normal_28_style);
     lv_label_set_static_text(button_labels[0], g_dialog_buttons_text[DialogButton_min]);
 
     for (int i = 1; i < DialogButton_max; i++) {
@@ -488,14 +478,14 @@ static void draw_entry_on_obj(lv_obj_t *obj, app_entry_t *entry) {
     }
 
     lv_obj_t *name = lv_label_create(obj, NULL);
-    lv_label_set_style(name, LV_LABEL_STYLE_MAIN, &g_white_28_style);
+    lv_label_set_style(name, LV_LABEL_STYLE_MAIN, &curr_theme()->normal_28_style);
     lv_label_set_static_text(name, entry->name);
     lv_label_set_align(name, LV_LABEL_ALIGN_LEFT);
     lv_label_set_long_mode(name, LV_LABEL_LONG_CROP);
     lv_obj_align(name, icon_small, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
 
     lv_obj_t *author = lv_label_create(obj, NULL);
-    lv_label_set_style(author, LV_LABEL_STYLE_MAIN, &g_white_16_style);
+    lv_label_set_style(author, LV_LABEL_STYLE_MAIN, &curr_theme()->normal_16_style);
     lv_label_set_align(author, LV_LABEL_ALIGN_RIGHT);
     lv_label_set_static_text(author, entry->author);
     lv_obj_align(author, NULL, LV_ALIGN_IN_BOTTOM_RIGHT, -offset, -offset);
@@ -667,7 +657,7 @@ static void draw_buttons() {
 
     if (num_buttons() <= 0) {
         lv_obj_t *mbox = lv_mbox_create(lv_scr_act(), NULL);
-        lv_mbox_set_style(mbox, LV_MBOX_STYLE_BG, &g_no_apps_mbox_style);
+        lv_mbox_set_style(mbox, LV_MBOX_STYLE_BG, &curr_theme()->no_apps_mbox_style);
         lv_obj_set_width(mbox, LIST_BTN_W);
 
         lv_mbox_set_text(mbox, "You have no apps!\nPlease put your apps under \"" APP_DIR "\"");
@@ -736,37 +726,6 @@ void setup_menu() {
     lv_style_copy(&g_transp_style, &lv_style_plain);
     g_transp_style.body.opa = LV_OPA_TRANSP;
 
-    lv_style_copy(&g_dark_opa_64_style, &lv_style_plain);
-    g_dark_opa_64_style.body.main_color = LV_COLOR_BLACK;
-    g_dark_opa_64_style.body.grad_color = LV_COLOR_BLACK;
-    g_dark_opa_64_style.body.opa = 64;
-
-    lv_style_copy(&g_white_48_style, &lv_style_plain);
-    g_white_48_style.text.font = &lv_font_roboto_48;
-    g_white_48_style.text.color = LV_COLOR_WHITE;
-
-    lv_style_copy(&g_white_28_style, &lv_style_plain);
-    g_white_28_style.text.font = &lv_font_roboto_28;
-    g_white_28_style.text.color = LV_COLOR_WHITE;
-
-    lv_style_copy(&g_white_22_style, &lv_style_plain);
-    g_white_22_style.text.font = &lv_font_roboto_22;
-    g_white_22_style.text.color = LV_COLOR_WHITE;
-
-    lv_style_copy(&g_white_16_style, &lv_style_plain);
-    g_white_16_style.text.color = LV_COLOR_WHITE;
-
-    lv_style_copy(&g_red_48_style, &lv_style_plain);
-    g_red_48_style.text.font = &lv_font_roboto_48;
-    g_red_48_style.text.color = LV_COLOR_RED;
-
-    lv_style_copy(&g_no_apps_mbox_style, &lv_style_pretty);
-    g_no_apps_mbox_style.body.main_color = LV_COLOR_BLACK;
-    g_no_apps_mbox_style.body.grad_color = LV_COLOR_BLACK;
-    g_no_apps_mbox_style.body.opa = 128;
-    g_no_apps_mbox_style.text.color = LV_COLOR_WHITE;
-    g_no_apps_mbox_style.text.font = &lv_font_roboto_48;
-
     gen_apps_list();
     draw_buttons();
 }
@@ -810,14 +769,14 @@ static void remote_progress_task(lv_task_t *task) {
             g_remote_cover = lv_obj_create(lv_scr_act(), NULL);
             lv_obj_set_event_cb(g_remote_cover, remote_cover_event_cb);
             lv_obj_set_size(g_remote_cover, LV_HOR_RES_MAX, LV_VER_RES_MAX);
-            lv_obj_set_style(g_remote_cover, &g_dark_opa_64_style);
+            lv_obj_set_style(g_remote_cover, &curr_theme()->dark_opa_64_style);
 
             g_remote_bar = lv_bar_create(g_remote_cover, NULL);
             lv_obj_set_size(g_remote_bar, REMOTE_PROGRESS_INNER_W + 10, REMOTE_PROGRESS_INNER_H + 10);
             lv_obj_align(g_remote_bar, NULL, LV_ALIGN_CENTER, 0, 0);
 
             lv_bar_set_style(g_remote_bar, LV_BAR_STYLE_BG, &g_transp_style);
-            lv_bar_set_style(g_remote_bar, LV_BAR_STYLE_INDIC, &g_remote_bar_indic_style);
+            lv_bar_set_style(g_remote_bar, LV_BAR_STYLE_INDIC, &curr_theme()->remote_bar_indic_style);
 
             lv_bar_set_range(g_remote_bar, 0, 100);
 
@@ -826,7 +785,7 @@ static void remote_progress_task(lv_task_t *task) {
             lv_obj_align(img, g_remote_bar, LV_ALIGN_CENTER, 0, 0);
 
             g_remote_percent = lv_label_create(img, NULL);
-            lv_obj_set_style(g_remote_percent, &g_white_22_style);
+            lv_obj_set_style(g_remote_percent, &curr_theme()->normal_22_style);
 
             g_remote_name = lv_label_create(img, g_remote_percent);
             lv_obj_align(g_remote_name, NULL, LV_ALIGN_IN_TOP_LEFT, (REMOTE_PROGRESS_W - REMOTE_PROGRESS_INNER_W) / 2, 20);
@@ -849,7 +808,7 @@ static void remote_progress_task(lv_task_t *task) {
         lv_obj_clean(g_remote_cover);
 
         g_remote_error_mbox = lv_mbox_create(g_remote_cover, NULL);
-        lv_obj_set_style(g_remote_error_mbox, &g_remote_error_mbox_style);
+        lv_obj_set_style(g_remote_error_mbox, &curr_theme()->remote_error_mbox_style);
         lv_obj_set_width(g_remote_error_mbox, LIST_BTN_W + 40);
         lv_mbox_set_text(g_remote_error_mbox, "An error has\noccured");
         lv_mbox_add_btns(g_remote_error_mbox, g_ok_btns);
@@ -888,15 +847,6 @@ void setup_misc() {
     lv_img_set_src(logo, &curr_theme()->logo_dsc);
     lv_obj_align(logo, NULL, LV_ALIGN_IN_BOTTOM_LEFT, 10, -32);
 
-    lv_style_copy(&g_remote_bar_indic_style, &lv_style_plain);
-    g_remote_bar_indic_style.body.main_color = lv_color_hex(0xc8e1ed);
-    g_remote_bar_indic_style.body.grad_color = lv_color_hex(0x46c1ff);
-
-    lv_style_copy(&g_remote_error_mbox_style, &g_no_apps_mbox_style);
-    g_remote_error_mbox_style.body.main_color = lv_color_hex(0x333333);
-    g_remote_error_mbox_style.body.grad_color = lv_color_hex(0x333333);
-    g_remote_error_mbox_style.body.opa = LV_OPA_COVER;
-
     net_status_init();
 
     if (curr_settings()->remote_type != RemoteLoaderType_disabled) {
@@ -912,7 +862,7 @@ void setup_misc() {
     if (curr_settings()->show_limit_warn && has_limitations()) {
         lv_obj_t *warn = lv_label_create(lv_scr_act(), NULL);
         lv_label_set_text(warn, LIMITATIONS_TEXT);
-        lv_obj_set_style(warn, &g_red_48_style);
+        lv_obj_set_style(warn, &curr_theme()->warn_48_style);
         lv_obj_align(warn, NULL, LV_ALIGN_IN_BOTTOM_MID, 0, -20);
     }
 

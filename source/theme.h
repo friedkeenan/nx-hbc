@@ -57,7 +57,6 @@ typedef struct {
     lv_style_t remote_bar_indic_style;
     lv_style_t remote_error_mbox_style;
 
-    lv_style_t transp_style;
     lv_style_t dark_opa_64_style;
 
     lv_style_t normal_16_style;
