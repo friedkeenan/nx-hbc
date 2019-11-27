@@ -2,6 +2,10 @@
 
 #include <lvgl/lvgl.h>
 
+#include "settings.h"
+
+#define THEME_PATH SETTINGS_DIR "/theme.zip"
+
 #define STAR_SMALL_W 25
 #define STAR_SMALL_H 24
 #define STAR_BIG_W 89
@@ -69,5 +73,7 @@ typedef struct {
 
 lv_res_t theme_init();
 void theme_exit();
+
+lv_res_t theme_reset();
 
 theme_t *curr_theme();

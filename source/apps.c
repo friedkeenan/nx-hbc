@@ -1,15 +1,30 @@
-#include <lvgl/lvgl.h>
 #include <stdio.h>
 #include <dirent.h>
 #include <limits.h>
 #include <string.h>
 #include <unistd.h>
+#include <minizip/unzip.h>
+#include <libconfig.h>
+#include <lvgl/lvgl.h>
 #include <switch.h>
 
 #include "apps.h"
 #include "log.h"
 #include "util.h"
 #include "main.h"
+#include "theme.h"
+
+static AppEntryType get_app_type(char *path) {
+    char *ext = get_ext(path);
+
+    if (strcasecmp(ext, "nro") == 0)
+        return AppEntryType_homebrew;
+
+    if (strcasecmp(ext, "zip") == 0)
+        return AppEntryType_theme;
+
+    return AppEntryType_none;
+}
 
 void app_entry_init_base(app_entry_t *entry, char *path) {
     strcpy(entry->path, path);
@@ -19,58 +34,116 @@ void app_entry_init_base(app_entry_t *entry, char *path) {
     char star_path[PATH_MAX + 1];
     app_entry_get_star_path(entry, star_path);
     entry->starred = is_file(star_path);
+
+    entry->type = get_app_type(path);
 }
 
 lv_res_t app_entry_init_icon(app_entry_t *entry) {
-    FILE *fp = fopen(entry->path, "rb");
-    if (fp == NULL) {
-        LV_LOG_WARN("Bad file");
-        return LV_RES_INV;
-    }
+    void *data = NULL;
+    u32 size = 0;
 
-    NroHeader header;
-    NroAssetHeader asset_header;
+    switch (entry->type) {
+        case AppEntryType_homebrew: {
+            FILE *fp = fopen(entry->path, "rb");
+            if (fp == NULL) {
+                LV_LOG_WARN("Bad file");
+                return LV_RES_INV;
+            }
 
-    fseek(fp, sizeof(NroStart), SEEK_SET);
-    if (fread(&header, sizeof(header), 1, fp) != 1) {
-        LV_LOG_WARN("Bad header read");
-        fclose(fp);
-        return LV_RES_INV;
-    }
+            NroHeader header;
+            NroAssetHeader asset_header;
 
-    fseek(fp, header.size, SEEK_SET);
-    if (fread(&asset_header, sizeof(asset_header), 1, fp) != 1) {
-        LV_LOG_WARN("Bad asset header read");
-        fclose(fp);
-        return LV_RES_INV;
+            fseek(fp, sizeof(NroStart), SEEK_SET);
+            if (fread(&header, sizeof(header), 1, fp) != 1) {
+                LV_LOG_WARN("Bad header read");
+                fclose(fp);
+                return LV_RES_INV;
+            }
+
+            fseek(fp, header.size, SEEK_SET);
+            if (fread(&asset_header, sizeof(asset_header), 1, fp) != 1) {
+                LV_LOG_WARN("Bad asset header read");
+                fclose(fp);
+                return LV_RES_INV;
+            }
+
+            size = asset_header.icon.size;
+            data = lv_mem_alloc(size);
+            if (data == NULL) {
+                LV_LOG_WARN("Bad icon alloc");
+                fclose(fp);
+                return LV_RES_INV;
+            }
+
+            fseek(fp, header.size + asset_header.icon.offset, SEEK_SET);
+            if (fread((u8 *) data, size, 1, fp) != 1) {
+                LV_LOG_WARN("Bad icon read");
+                lv_mem_free(data);
+                fclose(fp);
+                return LV_RES_INV;
+            }
+
+            fclose(fp);
+        } break;
+
+        case AppEntryType_theme: {
+            unzFile zf = unzOpen(entry->path);
+            if (zf == NULL)
+                return LV_RES_INV;
+
+            if (unzLocateFile(zf, "icon.jpg", 0) != UNZ_OK) {
+                unzClose(zf);
+                return LV_RES_INV;
+            }
+
+            if (unzOpenCurrentFile(zf) != UNZ_OK) {
+                unzClose(zf);
+                return LV_RES_INV;
+            }
+
+            unz_file_info file_info;
+            if (unzGetCurrentFileInfo(zf, &file_info, NULL, 0, NULL, 0, NULL, 0) != UNZ_OK) {
+                unzCloseCurrentFile(zf);
+                unzClose(zf);
+                return LV_RES_INV;
+            }
+
+            size = file_info.uncompressed_size;
+            data = lv_mem_alloc(size);
+            if (data == NULL) {
+                unzCloseCurrentFile(zf);
+                unzClose(zf);
+                return LV_RES_INV;
+            }
+
+            if (unzReadCurrentFile(zf, data, size) < size) {
+                lv_mem_free(data);
+                unzCloseCurrentFile(zf);
+                unzClose(zf);
+                return LV_RES_INV;
+            }
+
+            unzCloseCurrentFile(zf);
+            unzClose(zf);
+        } break;
+
+        default:
+            return LV_RES_INV;
     }
 
     entry->icon = (lv_img_dsc_t) {
         .header.always_zero = 0,
         .header.w = APP_ICON_W,
         .header.h = APP_ICON_H,
-        .data_size = asset_header.icon.size,
+        .data_size = size,
         .header.cf = LV_IMG_CF_RAW,
+        .data = data,
     };
-    entry->icon.data = lv_mem_alloc(entry->icon.data_size);
-    if (entry->icon.data == NULL) {
-        LV_LOG_WARN("Bad icon alloc");
-        fclose(fp);
-        return LV_RES_INV;
-    }
-
-    fseek(fp, header.size + asset_header.icon.offset, SEEK_SET);
-    if (fread((u8 *) entry->icon.data, entry->icon.data_size, 1, fp) != 1) {
-        LV_LOG_WARN("Bad icon read");
-        fclose(fp);
-        return LV_RES_INV;
-    }
 
     entry->icon_small = entry->icon;
     entry->icon_small.header.w = APP_ICON_SMALL_W;
     entry->icon_small.header.h = APP_ICON_SMALL_H;
 
-    fclose(fp);
     return LV_RES_OK;
 }
 
@@ -79,43 +152,120 @@ void app_entry_free_icon(app_entry_t *entry) {
 }
 
 lv_res_t app_entry_init_info(app_entry_t *entry) {
-    FILE *fp = fopen(entry->path, "rb");
-    if (fp == NULL) {
-        LV_LOG_WARN("Bad file\n");
-        return LV_RES_INV;
+    switch (entry->type) {
+        case AppEntryType_homebrew: {
+            FILE *fp = fopen(entry->path, "rb");
+            if (fp == NULL) {
+                LV_LOG_WARN("Bad file\n");
+                return LV_RES_INV;
+            }
+
+            NroHeader header;
+            NroAssetHeader asset_header;
+
+            fseek(fp, sizeof(NroStart), SEEK_SET);
+            if (fread(&header, sizeof(header), 1, fp) != 1) {
+                LV_LOG_WARN("Bad header read\n");
+                fclose(fp);
+                return LV_RES_INV;
+            }
+
+            fseek(fp, header.size, SEEK_SET);
+            if (fread(&asset_header, sizeof(asset_header), 1, fp) != 1) {
+                LV_LOG_WARN("Bad asset header read\n");
+                fclose(fp);
+                return LV_RES_INV;
+            }
+
+            NacpStruct nacp;
+
+            fseek(fp, header.size + asset_header.nacp.offset, SEEK_SET);
+            if (fread(&nacp, sizeof(nacp), 1, fp) != 1) {
+                LV_LOG_WARN("Bad nacp read\n");
+                fclose(fp);
+                return LV_RES_INV;
+            }
+
+            strcpy(entry->name, nacp.lang[0].name);
+            strcpy(entry->author, nacp.lang[0].author);
+            strcpy(entry->version, nacp.version);
+
+            fclose(fp);
+        } break;
+
+        case AppEntryType_theme: {
+            unzFile zf = unzOpen(entry->path);
+            if (zf == NULL)
+                return LV_RES_INV;
+
+            if (unzLocateFile(zf, "info.cfg", 0) != UNZ_OK) {
+                unzClose(zf);
+                return LV_RES_INV;
+            }
+
+            if (unzOpenCurrentFile(zf) != UNZ_OK) {
+                unzClose(zf);
+                return LV_RES_INV;
+            }
+
+            unz_file_info file_info;
+            if (unzGetCurrentFileInfo(zf, &file_info, NULL, 0, NULL, 0, NULL, 0) != UNZ_OK) {
+                unzCloseCurrentFile(zf);
+                unzClose(zf);
+                return LV_RES_INV;
+            }
+
+            char cfg_str[file_info.uncompressed_size + 1];
+            if (unzReadCurrentFile(zf, cfg_str, file_info.uncompressed_size) < file_info.uncompressed_size) {
+                unzCloseCurrentFile(zf);
+                unzClose(zf);
+                return LV_RES_INV;
+            }
+
+            unzCloseCurrentFile(zf);
+            unzClose(zf);
+
+            cfg_str[file_info.uncompressed_size] = '\0';
+
+            config_t cfg;
+
+            config_init(&cfg);
+            if (config_read_string(&cfg, cfg_str) != CONFIG_TRUE) {
+                config_destroy(&cfg);
+                return LV_RES_INV;
+            }
+
+            config_setting_t *info = config_lookup(&cfg, "info");
+            if (info == NULL) {
+                config_destroy(&cfg);
+                return LV_RES_INV;
+            }
+
+            const char *tmp_str;
+
+            if (config_setting_lookup_string(info, "name", &tmp_str) != CONFIG_TRUE) {
+                config_destroy(&cfg);
+                return LV_RES_INV;
+            }
+            strcpy(entry->name, tmp_str);
+
+            if (config_setting_lookup_string(info, "author", &tmp_str) != CONFIG_TRUE) {
+                config_destroy(&cfg);
+                return LV_RES_INV;
+            }
+            strcpy(entry->author, tmp_str);
+
+            if (config_setting_lookup_string(info, "version", &tmp_str) != CONFIG_TRUE) {
+                config_destroy(&cfg);
+                return LV_RES_INV;
+            }
+            strcpy(entry->version, tmp_str);
+        } break;
+
+        default:
+            return LV_RES_INV;
     }
 
-    NroHeader header;
-    NroAssetHeader asset_header;
-
-    fseek(fp, sizeof(NroStart), SEEK_SET);
-    if (fread(&header, sizeof(header), 1, fp) != 1) {
-        LV_LOG_WARN("Bad header read\n");
-        fclose(fp);
-        return LV_RES_INV;
-    }
-
-    fseek(fp, header.size, SEEK_SET);
-    if (fread(&asset_header, sizeof(asset_header), 1, fp) != 1) {
-        LV_LOG_WARN("Bad asset header read\n");
-        fclose(fp);
-        return LV_RES_INV;
-    }
-
-    NacpStruct nacp;
-
-    fseek(fp, header.size + asset_header.nacp.offset, SEEK_SET);
-    if (fread(&nacp, sizeof(nacp), 1, fp) != 1) {
-        LV_LOG_WARN("Bad nacp read\n");
-        fclose(fp);
-        return LV_RES_INV;
-    }
-
-    strcpy(entry->name, nacp.lang[0].name);
-    strcpy(entry->author, nacp.lang[0].author);
-    strcpy(entry->version, nacp.version);
-
-    fclose(fp);
     return LV_RES_OK;
 }
 
@@ -146,6 +296,7 @@ lv_res_t app_entry_set_star(app_entry_t *entry, bool star) {
 
     return LV_RES_OK;
 }
+
 
 lv_res_t app_entry_delete(app_entry_t *entry) {
     app_entry_set_star(entry, false); // Try to remove star file
@@ -179,10 +330,27 @@ void app_entry_add_arg(app_entry_t *entry, char *arg) {
 }
 
 lv_res_t app_entry_load(app_entry_t *entry) {
-    if (R_FAILED(envSetNextLoad(entry->path, entry->args)))
-        return LV_RES_INV;
+    switch (entry->type) {
+        case AppEntryType_homebrew: {
+            if (R_FAILED(envSetNextLoad(entry->path, entry->args)))
+                return LV_RES_INV;
 
-    stop_main_loop();
+            stop_main_loop();
+        } break;
+
+        case AppEntryType_theme: {
+            lv_res_t res = copy(THEME_PATH, entry->path);
+            if (res != LV_RES_OK)
+                return res;
+
+            res = theme_reset();
+            if (res != LV_RES_OK)
+                return res;
+        } break;
+
+        default:
+            return LV_RES_INV;
+    }
 
     return LV_RES_OK;
 }
@@ -235,7 +403,7 @@ lv_res_t app_entry_ll_init(lv_ll_t *ll) {
                 strcat(path, "/");
                 strcat(path, ep->d_name);
 
-                if (strcasecmp(get_ext(ep->d_name), "nro") == 0) {
+                if (get_app_type(path) != AppEntryType_none) {
                     if (app_entry_ll_ins(ll, path) != LV_RES_OK)
                         continue;
 
@@ -244,7 +412,7 @@ lv_res_t app_entry_ll_init(lv_ll_t *ll) {
             }
 
             closedir(dp);
-        } else if (strcasecmp(get_ext(ep->d_name), "nro") == 0) {
+        } else if (get_app_type(tmp_path) != AppEntryType_none) {
             app_entry_ll_ins(ll, tmp_path);
         }
     }

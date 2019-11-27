@@ -81,7 +81,7 @@ ifneq ($(BUILD),$(notdir $(CURDIR)))
 #---------------------------------------------------------------------------------
 
 export ROMFSABS	:=	$(CURDIR)/$(ROMFS)
-export RESOURCES	:=	$(CURDIR)/resources
+export THEME_DIR	:=	$(CURDIR)/theme
 
 export OUTPUT	:=	$(CURDIR)/$(TARGET)
 export TOPDIR	:=	$(CURDIR)
@@ -218,8 +218,8 @@ $(OFILES_SRC)	: $(HFILES_BIN)
 $(ROMFSABS):
 	@mkdir -p $@
 
-$(ROMFSABS)/theme.zip	:	$(ROMFSABS) $(RESOURCES)
-	@python3 $(TOPDIR)/tools/gen_theme.py $(RESOURCES) $@ 
+$(ROMFSABS)/theme.zip	:	$(ROMFSABS) $(THEME_DIR)
+	@python3 $(TOPDIR)/tools/gen_theme.py $(THEME_DIR) $@ 
 
 #---------------------------------------------------------------------------------
 # you need a rule like this for each extension you use as binary data

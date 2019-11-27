@@ -16,10 +16,19 @@
 #define APP_ICON_SMALL_W 72
 #define APP_ICON_SMALL_H 72
 
+typedef enum {
+    AppEntryType_none,
+
+    AppEntryType_homebrew,
+    AppEntryType_theme,
+} AppEntryType;
+
 typedef struct {
     char path[PATH_MAX + 1];
     char args[APP_ARGS_LEN];
+
     bool starred;
+    AppEntryType type;
 
     char name[APP_NAME_LEN];
     char author[APP_AUTHOR_LEN];

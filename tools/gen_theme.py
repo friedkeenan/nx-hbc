@@ -32,8 +32,8 @@ if __name__ == "__main__":
 
     with zipfile.ZipFile(theme_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for p in res_dir.iterdir():
-            if p.suffix == ".cfg":
-                with p.open("r") as f:
+            if p.suffix == ".cfg" or p.name == "icon.jpg":
+                with p.open("rb") as f:
                     zf.writestr(p.name, f.read())
             else:
                 add_asset_to_theme(zf, p, f"{p.stem}.bin")

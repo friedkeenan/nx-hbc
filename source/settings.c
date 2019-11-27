@@ -24,9 +24,8 @@ lv_res_t settings_init() {
     config_setting_t *settings;
 
     config_init(&cfg);
-    int res = config_read_file(&cfg, SETTINGS_FILE);
 
-    if (res == CONFIG_TRUE && (settings = config_lookup(&cfg, "settings")) != NULL) {
+    if (config_read_file(&cfg, SETTINGS_FILE) == CONFIG_TRUE && (settings = config_lookup(&cfg, "settings")) != NULL) {
         int use_gyro;
         if (config_setting_lookup_bool(settings, "use_gyro", &use_gyro) != CONFIG_TRUE)
             use_gyro = g_default_settings.use_gyro;

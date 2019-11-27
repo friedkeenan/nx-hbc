@@ -27,9 +27,6 @@
 #include "log.h"
 
 #define DEFAULT_THEME_PATH "romfs:/theme.zip"
-#define THEME_PATH SETTINGS_DIR "/theme.zip"
-
-#define STYLES_PATH "styles.cfg"
 
 #define GEN_ASSET(x) {.file_name = x}
 
@@ -201,7 +198,7 @@ static lv_res_t theme_load_styles(theme_t *theme, unzFile zf) {
     if (zf == NULL)
         return LV_RES_INV;
 
-    if (unzLocateFile(zf, STYLES_PATH, 0) != UNZ_OK)
+    if (unzLocateFile(zf, "styles.cfg", 0) != UNZ_OK)
         return LV_RES_INV;
 
     if (unzOpenCurrentFile(zf) != UNZ_OK)
@@ -224,10 +221,15 @@ static lv_res_t theme_load_styles(theme_t *theme, unzFile zf) {
     cfg_str[file_info.uncompressed_size] = '\0';
 
     config_t cfg;
-    config_setting_t *styles;
 
     config_init(&cfg);
-    if (config_read_string(&cfg, cfg_str) != CONFIG_TRUE || (styles = config_lookup(&cfg, "styles")) == NULL) {
+    if (config_read_string(&cfg, cfg_str) != CONFIG_TRUE) {
+        config_destroy(&cfg);
+        return LV_RES_INV;
+    }
+
+    config_setting_t *styles = config_lookup(&cfg, "styles");
+    if (styles == NULL) {
         config_destroy(&cfg);
         return LV_RES_INV;
     }
@@ -330,6 +332,19 @@ lv_res_t theme_init() {
 void theme_exit() {
     for (int i = 0; i < AssetId_max; i++)
         asset_clean(&g_assets_list[i]);
+}
+
+lv_res_t theme_reset() {
+    theme_exit();
+
+    lv_res_t res = theme_init();
+    if (res != LV_RES_OK)
+        return res;
+
+    lv_obj_invalidate(lv_scr_act());
+    lv_refr_now(NULL);
+
+    return res;
 }
 
 theme_t *curr_theme() {
