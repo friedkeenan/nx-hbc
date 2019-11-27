@@ -81,7 +81,6 @@ ifneq ($(BUILD),$(notdir $(CURDIR)))
 #---------------------------------------------------------------------------------
 
 export ROMFSABS	:=	$(CURDIR)/$(ROMFS)
-export ASSETS	:=	$(CURDIR)/assets
 export RESOURCES	:=	$(CURDIR)/resources
 
 export OUTPUT	:=	$(CURDIR)/$(TARGET)
@@ -177,9 +176,9 @@ $(BUILD):
 clean:
 	@echo clean ...
 ifeq ($(strip $(APP_JSON)),)
-	@rm -fr $(BUILD) $(TARGET).nro $(TARGET).nacp $(TARGET).elf $(ASSETS) $(ROMFSABS)
+	@rm -fr $(BUILD) $(TARGET).nro $(TARGET).nacp $(TARGET).elf $(ROMFSABS)
 else
-	@rm -fr $(BUILD) $(TARGET).nsp $(TARGET).nso $(TARGET).npdm $(TARGET).elf $(ASSETS) $(ROMFSABS)
+	@rm -fr $(BUILD) $(TARGET).nsp $(TARGET).nso $(TARGET).npdm $(TARGET).elf $(ROMFSABS)
 endif
 
 
@@ -197,9 +196,9 @@ ifeq ($(strip $(APP_JSON)),)
 all	:	$(OUTPUT).nro
 
 ifeq ($(strip $(NO_NACP)),)
-$(OUTPUT).nro	:	$(OUTPUT).elf $(OUTPUT).nacp $(ROMFSABS)/assets.zip
+$(OUTPUT).nro	:	$(OUTPUT).elf $(OUTPUT).nacp $(ROMFSABS)/theme.zip
 else
-$(OUTPUT).nro	:	$(OUTPUT).elf $(ROMFSABS)/assets.zip
+$(OUTPUT).nro	:	$(OUTPUT).elf $(ROMFSABS)/theme.zip
 endif
 
 else
@@ -219,13 +218,8 @@ $(OFILES_SRC)	: $(HFILES_BIN)
 $(ROMFSABS):
 	@mkdir -p $@
 
-$(ASSETS)	:	$(RESOURCES)
-	@rm -rf $@
-	@python3 $(TOPDIR)/tools/gen_assets.py $(RESOURCES) $(ASSETS)
-
-$(ROMFSABS)/assets.zip	:	$(ROMFSABS) $(ASSETS)
-	@rm -f $@
-	@zip -rj $@ $(ASSETS)
+$(ROMFSABS)/theme.zip	:	$(ROMFSABS) $(RESOURCES)
+	@python3 $(TOPDIR)/tools/gen_theme.py $(RESOURCES) $@ 
 
 #---------------------------------------------------------------------------------
 # you need a rule like this for each extension you use as binary data

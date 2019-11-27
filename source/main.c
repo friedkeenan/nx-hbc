@@ -3,7 +3,7 @@
 
 #include "drivers.h"
 #include "log.h"
-#include "assets.h"
+#include "theme.h"
 #include "decoder.h"
 #include "gui.h"
 #include "settings.h"
@@ -18,12 +18,11 @@ int main(int argc, char **argv) {
     appletLockExit();
 
     logInitialize("sdmc:/hbc.log");
-    settings_init();
 
     lv_init();
 
-    Result rc = assetsInit();
-    if (R_FAILED(rc)) return rc;
+    settings_init();
+    theme_init();
 
     driversInitialize();
     
@@ -46,7 +45,7 @@ int main(int argc, char **argv) {
     gui_exit();
 
     driversExit();
-    assetsExit();
+    theme_exit();
     logExit();
 
     appletUnlockExit();

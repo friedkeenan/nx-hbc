@@ -5,7 +5,6 @@
 
 #include "gui.h"
 #include "log.h"
-#include "assets.h"
 #include "decoder.h"
 #include "drivers.h"
 #include "apps.h"
@@ -14,6 +13,7 @@
 #include "limitations.h"
 #include "net_status.h"
 #include "settings.h"
+#include "theme.h"
 #include "util.h"
 
 enum {
@@ -27,26 +27,19 @@ enum {
     DialogButton_max
 };
 
-static lv_img_dsc_t g_background;
-
 static lv_ll_t g_apps_ll;
 static int g_apps_ll_len;
-
-static lv_img_dsc_t g_star_dscs[2] = {0}; // {small, big}
 
 static lv_style_t g_no_apps_mbox_style;
 
 static lv_obj_t *g_curr_focused_tmp = NULL;
 
-static lv_img_dsc_t g_list_dscs[2] = {0}; // {normal, hover}
 static lv_obj_t *g_list_buttons[MAX_LIST_ROWS] = {0};
 static lv_obj_t *g_list_buttons_tmp[MAX_LIST_ROWS] = {0};
 
 static lv_obj_t *g_list_covers[MAX_LIST_ROWS] = {0}; // Needed because when objects are direct children of an imgbtn, they're always centered (don't know why)
 static lv_obj_t *g_list_covers_tmp[MAX_LIST_ROWS] = {0};
 
-static lv_img_dsc_t g_dialog_bg;
-static lv_img_dsc_t g_dialog_buttons_dscs[2] = {0};
 static lv_obj_t *g_dialog_buttons[DialogButton_max] = {0};
 static lv_obj_t *g_dialog_cover = NULL;
 static app_entry_t *g_dialog_entry = NULL;
@@ -55,7 +48,6 @@ static char *g_dialog_buttons_text[] = {"Delete", "Load", NULL /* Star/Unstar */
 
 static int g_list_index = 0; // -3 for right arrow, -2 for left
 
-static lv_img_dsc_t g_arrow_dscs[4] = {0}; // {next_normal, next_hover, prev_normal, prev_hover}
 static lv_obj_t *g_arrow_buttons[2] = {0}; // {next, prev}
 
 static int g_curr_page = 0;
@@ -64,11 +56,8 @@ static lv_anim_t g_page_arrow_anims[2] = {0};
 static bool g_page_list_anim_running = false;
 static bool g_page_arrow_anim_running = false;
 
-static lv_img_dsc_t g_logo;
-
 static thrd_t g_remote_thread;
 static remote_loader_t *g_remote_loader;
-static lv_img_dsc_t g_remote_progress_img;
 static lv_style_t g_remote_bar_indic_style;
 static lv_style_t g_remote_error_mbox_style;
 static lv_obj_t *g_remote_cover = NULL;
@@ -77,7 +66,6 @@ static lv_obj_t *g_remote_name = NULL;
 static lv_obj_t *g_remote_percent = NULL;
 static lv_obj_t *g_remote_error_mbox = NULL;
 
-static lv_img_dsc_t g_network_icons[2] = {0}; // Inactive, active
 static lv_obj_t *g_net_icon = NULL;
 
 static lv_style_t g_transp_style;
@@ -175,13 +163,13 @@ static void exit_dialog() {
 static void dialog_button_event(lv_obj_t *obj, lv_event_t event) {
     switch (event) {
         case LV_EVENT_FOCUSED: {
-            lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, &g_dialog_buttons_dscs[1]);
-            lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, &g_dialog_buttons_dscs[1]);
+            lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, &curr_theme()->dialog_btns_dscs[1]);
+            lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, &curr_theme()->dialog_btns_dscs[1]);
         } break;
 
         case LV_EVENT_DEFOCUSED: {
-            lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, &g_dialog_buttons_dscs[0]);
-            lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, &g_dialog_buttons_dscs[0]);
+            lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, &curr_theme()->dialog_btns_dscs[0]);
+            lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, &curr_theme()->dialog_btns_dscs[0]);
         } break;
 
         case LV_EVENT_CANCEL: {
@@ -296,7 +284,7 @@ static void draw_app_dialog() {
     lv_obj_set_size(g_dialog_cover, LV_HOR_RES_MAX, LV_VER_RES_MAX);
 
     lv_obj_t *dialog_bg = lv_img_create(g_dialog_cover, NULL);
-    lv_img_set_src(dialog_bg, &g_dialog_bg);
+    lv_img_set_src(dialog_bg, &curr_theme()->dialog_bg_dsc);
 
     lv_obj_align(dialog_bg, NULL, LV_ALIGN_CENTER, 0, 0);
 
@@ -313,7 +301,7 @@ static void draw_app_dialog() {
 
     if (g_dialog_entry->starred) {
         lv_obj_t *star = lv_img_create(dialog_bg, NULL);
-        lv_img_set_src(star, &g_star_dscs[1]);
+        lv_img_set_src(star, &curr_theme()->star_dscs[1]);
         lv_obj_align(star, icon, LV_ALIGN_IN_TOP_LEFT, -STAR_BIG_W / 2, -STAR_BIG_H / 2);
     }
 
@@ -333,8 +321,8 @@ static void draw_app_dialog() {
     lv_obj_align(auth, icon, LV_ALIGN_OUT_RIGHT_TOP, 20, 20 + 28 + 10);
 
     g_dialog_buttons[0] = lv_imgbtn_create(dialog_bg, NULL);
-    lv_imgbtn_set_src(g_dialog_buttons[0], LV_BTN_STATE_REL, &g_dialog_buttons_dscs[0]);
-    lv_imgbtn_set_src(g_dialog_buttons[0], LV_BTN_STATE_PR, &g_dialog_buttons_dscs[0]);
+    lv_imgbtn_set_src(g_dialog_buttons[0], LV_BTN_STATE_REL, &curr_theme()->dialog_btns_dscs[0]);
+    lv_imgbtn_set_src(g_dialog_buttons[0], LV_BTN_STATE_PR, &curr_theme()->dialog_btns_dscs[0]);
     lv_group_add_obj(keypad_group(), g_dialog_buttons[0]);
     lv_obj_set_event_cb(g_dialog_buttons[0], dialog_button_event);
     lv_obj_align(g_dialog_buttons[0], NULL, LV_ALIGN_IN_BOTTOM_LEFT, 40, -20);
@@ -378,8 +366,8 @@ static void list_button_event(lv_obj_t *obj, lv_event_t event) {
 
     switch (event) {
         case LV_EVENT_FOCUSED: {
-            lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, &g_list_dscs[1]);
-            lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, &g_list_dscs[1]);
+            lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, &curr_theme()->list_btns_dscs[1]);
+            lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, &curr_theme()->list_btns_dscs[1]);
 
             for (g_list_index = 0; g_list_index < num_buttons(); g_list_index++) {
                 if (obj == g_list_buttons[g_list_index])
@@ -388,8 +376,8 @@ static void list_button_event(lv_obj_t *obj, lv_event_t event) {
         } break;
 
         case LV_EVENT_DEFOCUSED: {
-            lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, &g_list_dscs[0]);
-            lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, &g_list_dscs[0]);
+            lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, &curr_theme()->list_btns_dscs[0]);
+            lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, &curr_theme()->list_btns_dscs[0]);
         } break;
 
         case LV_EVENT_KEY: {
@@ -436,13 +424,13 @@ static void arrow_button_event(lv_obj_t *obj, lv_event_t event) {
     switch (event) {
         case LV_EVENT_FOCUSED: {
             if (obj == g_arrow_buttons[0]) {
-                lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, &g_arrow_dscs[1]);
-                lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, &g_arrow_dscs[1]);
+                lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, &curr_theme()->arrow_btns_dscs[1]);
+                lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, &curr_theme()->arrow_btns_dscs[1]);
 
                 g_list_index = -3;
             } else {
-                lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, &g_arrow_dscs[3]);
-                lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, &g_arrow_dscs[3]);
+                lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, &curr_theme()->arrow_btns_dscs[3]);
+                lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, &curr_theme()->arrow_btns_dscs[3]);
 
                 g_list_index = -2;
             }
@@ -450,11 +438,11 @@ static void arrow_button_event(lv_obj_t *obj, lv_event_t event) {
 
         case LV_EVENT_DEFOCUSED: {
             if (obj == g_arrow_buttons[0]) {
-                lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, &g_arrow_dscs[0]);
-                lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, &g_arrow_dscs[0]);
+                lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, &curr_theme()->arrow_btns_dscs[0]);
+                lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, &curr_theme()->arrow_btns_dscs[0]);
             } else {
-                lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, &g_arrow_dscs[2]);
-                lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, &g_arrow_dscs[2]);
+                lv_imgbtn_set_src(obj, LV_BTN_STATE_REL, &curr_theme()->arrow_btns_dscs[2]);
+                lv_imgbtn_set_src(obj, LV_BTN_STATE_PR, &curr_theme()->arrow_btns_dscs[2]);
             }
         } break;
 
@@ -495,7 +483,7 @@ static void draw_entry_on_obj(lv_obj_t *obj, app_entry_t *entry) {
 
     if (entry->starred) {
         lv_obj_t *star = lv_img_create(obj, NULL);
-        lv_img_set_src(star, &g_star_dscs[0]);
+        lv_img_set_src(star, &curr_theme()->star_dscs[0]);
         lv_obj_align(star, icon_small, LV_ALIGN_IN_TOP_LEFT, -STAR_SMALL_W / 2, -STAR_SMALL_H / 2);
     }
 
@@ -521,8 +509,8 @@ static void draw_arrow_button(int idx) {
     g_arrow_buttons[idx] = lv_imgbtn_create(lv_scr_act(), NULL);
     lv_group_add_obj(keypad_group(), g_arrow_buttons[idx]);
     lv_obj_set_event_cb(g_arrow_buttons[idx], arrow_button_event);
-    lv_imgbtn_set_src(g_arrow_buttons[idx], LV_BTN_STATE_REL, &g_arrow_dscs[idx * 2]);
-    lv_imgbtn_set_src(g_arrow_buttons[idx], LV_BTN_STATE_PR, &g_arrow_dscs[idx * 2]);
+    lv_imgbtn_set_src(g_arrow_buttons[idx], LV_BTN_STATE_REL, &curr_theme()->arrow_btns_dscs[idx * 2]);
+    lv_imgbtn_set_src(g_arrow_buttons[idx], LV_BTN_STATE_PR, &curr_theme()->arrow_btns_dscs[idx * 2]);
     lv_obj_align(g_arrow_buttons[idx], NULL, LV_ALIGN_CENTER, ((idx == 0) ? 1 : -1) * ARROW_OFF, 0);
 }
 
@@ -614,8 +602,8 @@ static void change_page(int dir) {
     lv_obj_set_parent(g_list_buttons[0], anim_objs[0]);
     lv_obj_align(g_list_buttons[0], NULL, (dir < 0) ? LV_ALIGN_IN_RIGHT_MID : LV_ALIGN_IN_LEFT_MID, 0, 0);
 
-    lv_imgbtn_set_src(g_list_buttons[0], LV_BTN_STATE_REL, &g_list_dscs[0]);
-    lv_imgbtn_set_src(g_list_buttons[0], LV_BTN_STATE_PR, &g_list_dscs[0]);
+    lv_imgbtn_set_src(g_list_buttons[0], LV_BTN_STATE_REL, &curr_theme()->list_btns_dscs[0]);
+    lv_imgbtn_set_src(g_list_buttons[0], LV_BTN_STATE_PR, &curr_theme()->list_btns_dscs[0]);
 
     for (int i = 1; i < MAX_LIST_ROWS; i++) {
         anim_objs[i] = lv_obj_create(lv_scr_act(), anim_objs[i - 1]);
@@ -694,8 +682,8 @@ static void draw_buttons() {
     g_list_buttons[0] = lv_imgbtn_create(lv_scr_act(), NULL);
     lv_group_add_obj(keypad_group(), g_list_buttons[0]);
     lv_obj_set_event_cb(g_list_buttons[0], list_button_event);
-    lv_imgbtn_set_src(g_list_buttons[0], LV_BTN_STATE_REL, &g_list_dscs[0]);
-    lv_imgbtn_set_src(g_list_buttons[0], LV_BTN_STATE_PR, &g_list_dscs[0]);
+    lv_imgbtn_set_src(g_list_buttons[0], LV_BTN_STATE_REL, &curr_theme()->list_btns_dscs[0]);
+    lv_imgbtn_set_src(g_list_buttons[0], LV_BTN_STATE_PR, &curr_theme()->list_btns_dscs[0]);
     lv_obj_align(g_list_buttons[0], NULL, LV_ALIGN_IN_TOP_MID, 0, (LV_VER_RES_MAX - LIST_BTN_H * MAX_LIST_ROWS) / 2);
 
     g_list_covers[0] = lv_obj_create(g_list_buttons[0], NULL);
@@ -739,21 +727,8 @@ static void draw_buttons() {
 }
 
 void setup_screen() {
-    u8 *data;
-    size_t size;
-
-    assetsGetData(AssetId_background, &data, &size);
-    g_background = (lv_img_dsc_t) {
-        .header.always_zero = 0,
-        .header.w = LV_HOR_RES_MAX,
-        .header.h = LV_VER_RES_MAX,
-        .data_size = size,
-        .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
-        .data = data,
-    };
-
     lv_obj_t *scr = lv_img_create(NULL, NULL);
-    lv_img_set_src(scr, &g_background);
+    lv_img_set_src(scr, &curr_theme()->background_dsc);
     lv_scr_load(scr);
 }
 
@@ -791,77 +766,6 @@ void setup_menu() {
     g_no_apps_mbox_style.body.opa = 128;
     g_no_apps_mbox_style.text.color = LV_COLOR_WHITE;
     g_no_apps_mbox_style.text.font = &lv_font_roboto_48;
-
-    u8 *data;
-    size_t size;
-
-    // List buttons
-    for (int i = 0; i < 2; i++) {
-        assetsGetData(AssetId_apps_list + i, &data, &size);
-        g_list_dscs[i] = (lv_img_dsc_t) {
-            .header.always_zero = 0,
-            .header.w = LIST_BTN_W,
-            .header.h = LIST_BTN_H,
-            .data_size = size,
-            .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
-            .data = data,
-        };
-    }
-
-    // Arrow buttons
-    for (int i = 0; i < 4; i++) {
-        assetsGetData(AssetId_apps_next + i, &data, &size);
-        g_arrow_dscs[i] = (lv_img_dsc_t) {
-            .header.always_zero = 0,
-            .header.w = ARROW_BTN_W,
-            .header.h = ARROW_BTN_H,
-            .data_size = size,
-            .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
-            .data = data,
-        };
-    }
-
-    assetsGetData(AssetId_star_small, &data, &size);
-    g_star_dscs[0] = (lv_img_dsc_t) {
-        .header.always_zero = 0,
-        .header.w = STAR_SMALL_W,
-        .header.h = STAR_SMALL_H,
-        .data_size = size,
-        .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
-        .data = data,
-    };
-
-    assetsGetData(AssetId_star_big, &data, &size);
-    g_star_dscs[1] = (lv_img_dsc_t) {
-        .header.always_zero = 0,
-        .header.w = STAR_BIG_W,
-        .header.h = STAR_BIG_H,
-        .data_size = size,
-        .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
-        .data = data,
-    };
-
-    assetsGetData(AssetId_dialog_background, &data, &size);
-    g_dialog_bg = (lv_img_dsc_t) {
-        .header.always_zero = 0,
-        .header.w = DIALOG_BG_W,
-        .header.h = DIALOG_BG_H,
-        .data_size = size,
-        .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
-        .data = data,
-    };
-
-    for (int i = 0; i < 2; i++) {
-        assetsGetData(AssetId_button_tiny + i, &data, &size);
-        g_dialog_buttons_dscs[i] = (lv_img_dsc_t) {
-            .header.always_zero = 0,
-            .header.w = DIALOG_BTN_W,
-            .header.h = DIALOG_BTN_H,
-            .data_size = size,
-            .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
-            .data = data,
-        };
-    }
 
     gen_apps_list();
     draw_buttons();
@@ -918,7 +822,7 @@ static void remote_progress_task(lv_task_t *task) {
             lv_bar_set_range(g_remote_bar, 0, 100);
 
             lv_obj_t *img = lv_img_create(g_remote_cover, NULL);
-            lv_img_set_src(img, &g_remote_progress_img);
+            lv_img_set_src(img, &curr_theme()->remote_progress_dsc);
             lv_obj_align(img, g_remote_bar, LV_ALIGN_CENTER, 0, 0);
 
             g_remote_percent = lv_label_create(img, NULL);
@@ -960,52 +864,29 @@ static void net_icon_task(lv_task_t *task) {
 
     switch (status) {
         case NetStatus_disconnected: {
-            lv_img_set_src(g_net_icon, &g_network_icons[0]);
+            lv_img_set_src(g_net_icon, &curr_theme()->net_icons_dscs[0]);
         } break;
 
         case NetStatus_connected: {
-            lv_img_set_src(g_net_icon, &g_network_icons[1]);
+            lv_img_set_src(g_net_icon, &curr_theme()->net_icons_dscs[1]);
         } break;
 
         case NetStatus_connecting: {
             const lv_img_dsc_t *src = ((lv_img_ext_t *) lv_obj_get_ext_attr(g_net_icon))->src;
 
-            if (src == &g_network_icons[0])
-                lv_img_set_src(g_net_icon, &g_network_icons[1]);
+            if (src == &curr_theme()->net_icons_dscs[0])
+                lv_img_set_src(g_net_icon, &curr_theme()->net_icons_dscs[1]);
             else
-                lv_img_set_src(g_net_icon, &g_network_icons[0]);
+                lv_img_set_src(g_net_icon, &curr_theme()->net_icons_dscs[0]);
 
         } break;
     }
 }
 
 void setup_misc() {
-    u8 *data;
-    size_t size;
-
-    assetsGetData(AssetId_logo, &data, &size);
-    g_logo = (lv_img_dsc_t) {
-        .header.always_zero = 0,
-        .header.w = LOGO_W,
-        .header.h = LOGO_H,
-        .data_size = size,
-        .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
-        .data = data,
-    };
-
     lv_obj_t *logo = lv_img_create(lv_scr_act(), NULL);
-    lv_img_set_src(logo, &g_logo);
+    lv_img_set_src(logo, &curr_theme()->logo_dsc);
     lv_obj_align(logo, NULL, LV_ALIGN_IN_BOTTOM_LEFT, 10, -32);
-
-    assetsGetData(AssetId_remote_progress, &data, &size);
-    g_remote_progress_img = (lv_img_dsc_t) {
-        .header.always_zero = 0,
-        .header.w = REMOTE_PROGRESS_W,
-        .header.h = REMOTE_PROGRESS_H,
-        .data_size = size,
-        .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
-        .data = data,
-    };
 
     lv_style_copy(&g_remote_bar_indic_style, &lv_style_plain);
     g_remote_bar_indic_style.body.main_color = lv_color_hex(0xc8e1ed);
@@ -1033,18 +914,6 @@ void setup_misc() {
         lv_label_set_text(warn, LIMITATIONS_TEXT);
         lv_obj_set_style(warn, &g_red_48_style);
         lv_obj_align(warn, NULL, LV_ALIGN_IN_BOTTOM_MID, 0, -20);
-    }
-
-    for(int i = 0; i < 2; i++) {
-        assetsGetData(AssetId_network_inactive + i, &data, &size);
-        g_network_icons[i] = (lv_img_dsc_t) {
-            .header.always_zero = 0,
-            .header.w = NETWORK_ICON_W,
-            .header.h = NETWORK_ICON_H,
-            .data_size = size,
-            .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
-            .data = data,
-        };
     }
 
     g_net_icon = lv_img_create(lv_scr_act(), NULL);

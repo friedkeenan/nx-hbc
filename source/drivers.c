@@ -4,8 +4,8 @@
 
 #include "drivers.h"
 #include "log.h"
-#include "assets.h"
 #include "settings.h"
+#include "theme.h"
 
 static Framebuffer g_framebuffer;
 static lv_disp_buf_t g_disp_buf;
@@ -20,7 +20,6 @@ static u32 g_sixaxis_handles[4]; // Sixaxis handles
 // We actually only need to keep track of a specific set of data so we dont need all sixaxis values
 static HidVector g_gyro_center;
 static lv_obj_t * g_pointer_canvas;
-static lv_img_dsc_t g_pointer_img;
 static lv_color_t g_pointer_buf[LV_CANVAS_BUF_SIZE_TRUE_COLOR_ALPHA(96, 96)];
 static lv_obj_t * g_pointer_fake_canvas;
 static float g_pointer_screen_magic = 0.7071f; // This is a repeating number that describes the top right of a square inside a unit circle whose sides are parallel to the x-y axis'
@@ -146,7 +145,7 @@ static bool gyro_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
 
     // Clear canvas and draw rotated pointer according to finalvector.z
     memset(g_pointer_buf, 0, sizeof(g_pointer_buf));
-    lv_canvas_rotate(g_pointer_canvas, &g_pointer_img,  z_rad * 180 / M_PI, 0, 0, 96 / 2, 96 / 2);
+    lv_canvas_rotate(g_pointer_canvas, &curr_theme()->cursor_dsc,  z_rad * 180 / M_PI, 0, 0, 96 / 2, 96 / 2);
     lv_obj_align(g_pointer_canvas, g_pointer_fake_canvas, LV_ALIGN_IN_TOP_LEFT, -48, -48);
     
     return false;
@@ -228,19 +227,6 @@ void driversInitialize() {
 
         lv_task_t * handheld_check = lv_task_create(handheld_changed_task, 500, LV_TASK_PRIO_MID, NULL);
         lv_task_ready(handheld_check);
-        
-        // Cursor asset
-        u8 *data;
-        size_t size;
-        assetsGetData(AssetId_cursor, &data, &size);
-        g_pointer_img = (lv_img_dsc_t) {
-            .header.always_zero = 0,
-            .header.w = 96,
-            .header.h = 96,
-            .data_size = size,
-            .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
-            .data = data,
-        };
         
         // Get handles for sixaxis
         hidGetSixAxisSensorHandles(&g_sixaxis_handles[0], 2, CONTROLLER_PLAYER_1, TYPE_JOYCON_PAIR);
