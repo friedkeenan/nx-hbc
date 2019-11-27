@@ -234,34 +234,38 @@ static lv_res_t theme_load_styles(theme_t *theme, unzFile zf) {
 
     lv_color_t tmp_col;
 
-    config_setting_lookup_color(styles, "no_apps_mbox_bg_color", &tmp_col);
-    theme->no_apps_mbox_style.body.main_color = tmp_col;
-    theme->no_apps_mbox_style.body.grad_color = tmp_col;
+    if (config_setting_lookup_color(styles, "no_apps_mbox_bg_color", &tmp_col) == CONFIG_TRUE) {
+        theme->no_apps_mbox_style.body.main_color = tmp_col;
+        theme->no_apps_mbox_style.body.grad_color = tmp_col;
+    }
 
-    config_setting_lookup_color(styles, "remote_error_mbox_color", &tmp_col);
-    theme->remote_error_mbox_style.body.main_color = tmp_col;
-    theme->remote_error_mbox_style.body.grad_color = tmp_col;
+    if (config_setting_lookup_color(styles, "remote_error_mbox_color", &tmp_col) == CONFIG_TRUE) {
+        theme->remote_error_mbox_style.body.main_color = tmp_col;
+        theme->remote_error_mbox_style.body.grad_color = tmp_col;
+    }
 
-    config_setting_lookup_color(styles, "remote_bar_main_color", &tmp_col);
-    theme->remote_bar_indic_style.body.main_color = tmp_col;
+    if (config_setting_lookup_color(styles, "remote_bar_main_color", &tmp_col) == CONFIG_TRUE)
+        theme->remote_bar_indic_style.body.main_color = tmp_col;
 
-    config_setting_lookup_color(styles, "remote_bar_grad_color", &tmp_col);
-    theme->remote_bar_indic_style.body.grad_color = tmp_col;
+    if (config_setting_lookup_color(styles, "remote_bar_grad_color", &tmp_col) == CONFIG_TRUE)
+        theme->remote_bar_indic_style.body.grad_color = tmp_col;
 
-    config_setting_lookup_color(styles, "dark_cover_color", &tmp_col);
-    theme->dark_opa_64_style.body.main_color = tmp_col;
-    theme->dark_opa_64_style.body.grad_color = tmp_col;
+    if (config_setting_lookup_color(styles, "dark_cover_color", &tmp_col) == CONFIG_TRUE) {
+        theme->dark_opa_64_style.body.main_color = tmp_col;
+        theme->dark_opa_64_style.body.grad_color = tmp_col;
+    }
 
-    config_setting_lookup_color(styles, "normal_text_color", &tmp_col);
-    theme->normal_16_style.text.color = tmp_col;
-    theme->normal_22_style.text.color = tmp_col;
-    theme->normal_28_style.text.color = tmp_col;
-    theme->normal_48_style.text.color = tmp_col;
-    theme->no_apps_mbox_style.text.color = tmp_col;
-    theme->remote_error_mbox_style.text.color = tmp_col;
+    if (config_setting_lookup_color(styles, "normal_text_color", &tmp_col) == CONFIG_TRUE) {
+        theme->normal_16_style.text.color = tmp_col;
+        theme->normal_22_style.text.color = tmp_col;
+        theme->normal_28_style.text.color = tmp_col;
+        theme->normal_48_style.text.color = tmp_col;
+        theme->no_apps_mbox_style.text.color = tmp_col;
+        theme->remote_error_mbox_style.text.color = tmp_col;
+    }
 
-    config_setting_lookup_color(styles, "warn_text_color", &tmp_col);
-    theme->warn_48_style.text.color = tmp_col;
+    if (config_setting_lookup_color(styles, "warn_text_color", &tmp_col) == CONFIG_TRUE)
+        theme->warn_48_style.text.color = tmp_col;
 
     config_destroy(&cfg);
 
