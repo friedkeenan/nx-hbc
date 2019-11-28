@@ -1,3 +1,4 @@
+#include <threads.h>
 #include <lvgl/lvgl.h>
 #include <switch.h>
 
@@ -10,8 +11,14 @@
 
 static bool g_should_loop = true;
 
+static bool g_should_reset_theme = false;
+
 void stop_main_loop() {
     g_should_loop = false;
+}
+
+void do_theme_reset() {
+    g_should_reset_theme = true;
 }
 
 int main(int argc, char **argv) {
@@ -40,6 +47,11 @@ int main(int argc, char **argv) {
             break;
 
         lv_task_handler();
+
+        if (g_should_reset_theme) {
+            if (theme_reset() == LV_RES_OK)
+                g_should_reset_theme = false;
+        }
     }
 
     gui_exit();

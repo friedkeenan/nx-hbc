@@ -218,7 +218,7 @@ $(OFILES_SRC)	: $(HFILES_BIN)
 $(ROMFSABS):
 	@mkdir -p $@
 
-$(ROMFSABS)/theme.zip	:	$(ROMFSABS) $(THEME_DIR)
+$(ROMFSABS)/theme.zip	:	$(ROMFSABS) $(wildcard $(THEME_DIR)/*)
 	@python3 $(TOPDIR)/tools/gen_theme.py $(THEME_DIR) $@ 
 
 #---------------------------------------------------------------------------------

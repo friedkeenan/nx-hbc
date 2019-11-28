@@ -815,6 +815,8 @@ static void remote_progress_task(lv_task_t *task) {
         lv_obj_align(g_remote_error_mbox, NULL, LV_ALIGN_CENTER, 0, 0);
         
         lv_obj_set_event_cb(g_remote_error_mbox, remote_error_mbox_event_cb);
+    } else if (g_remote_cover != NULL) {
+        lv_obj_del(g_remote_cover);
     }
 }
 

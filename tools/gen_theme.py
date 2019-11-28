@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
+import os
 import zipfile
 from PIL import Image
 from pathlib import Path
@@ -14,21 +15,21 @@ def add_asset_to_theme(zf, path, new_path):
 
     zf.writestr(new_path, im.tobytes())
 
-if __name__ == "__main__":
+def main(argv):
     usage = "Usage: gen_theme.py <resources folder> <output theme.zip>"
 
-    if len(sys.argv) < 3:
+    if len(argv) < 2:
         print(usage)
-        sys.exit(1)
+        return 1
 
-    res_dir = Path(sys.argv[1])
+    res_dir = Path(argv[0])
     if not res_dir.is_dir():
         print(usage)
-        sys.exit(1)
+        return 1
 
-    theme_path = Path(sys.argv[2])
+    theme_path = Path(argv[1])
     if not theme_path.parent.exists():
-        theme_path.parent.mkdir()
+        os.makedirs(theme_path.parent)
 
     with zipfile.ZipFile(theme_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for p in res_dir.iterdir():
@@ -37,3 +38,8 @@ if __name__ == "__main__":
                     zf.writestr(p.name, f.read())
             else:
                 add_asset_to_theme(zf, p, f"{p.stem}.bin")
+
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

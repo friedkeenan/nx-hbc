@@ -4,3 +4,4 @@ build/*
 *.nro
 romfs/*
 *.log
+*__pycache__*

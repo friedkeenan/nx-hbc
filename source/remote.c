@@ -48,7 +48,7 @@
 #include "settings.h"
 #include "util.h"
 
-#define TMP_APP_PATH SETTINGS_DIR "/tmp_remote.nro"
+#define TMP_APP_PATH SETTINGS_DIR "/tmp_remote"
 
 static bool remote_loader_end_recv(remote_loader_t *r);
 
@@ -261,14 +261,27 @@ static int recv_app(remote_loader_t *r) {
         if (response < 0) {
             remove(TMP_APP_PATH);
         } else {
-            char tmp_path[PATH_MAX + 1];
-            strcpy(tmp_path, r->entry.path);
-            *(get_name(tmp_path)) = '\0';
-            logPrintf("tmp_path(%s)\n", tmp_path);
+            switch (r->entry.type) {
+                case AppEntryType_homebrew: {
+                    char tmp_path[PATH_MAX + 1];
+                    strcpy(tmp_path, r->entry.path);
+                    *(get_name(tmp_path)) = '\0';
+                    logPrintf("tmp_path(%s)\n", tmp_path);
 
-            mkdirs(tmp_path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-            remove(r->entry.path);
-            rename(TMP_APP_PATH, r->entry.path);
+                    mkdirs(tmp_path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+                    remove(r->entry.path);
+                    rename(TMP_APP_PATH, r->entry.path);
+                } break;
+
+                case AppEntryType_theme: {
+                    strcpy(r->entry.path, TMP_APP_PATH);
+                } break;
+
+                default: {
+                    remove(TMP_APP_PATH);
+                    response = -1;
+                } break;
+            }
         }
     }
 
@@ -372,6 +385,35 @@ s16 remote_loader_get_progress(remote_loader_t *r) {
     return 100 * ((float) current / (float) total);
 }
 
+static lv_res_t remote_loader_reset(remote_loader_t *r) {
+    mtx_lock(&r->mtx);
+
+    r->flags = 0;
+
+    r->total = 0;
+    r->current = 0;
+
+    if (r->exit_cb != NULL)
+        r->exit_cb(r);
+
+    lv_res_t res = LV_RES_OK;
+
+    if (r->init_cb != NULL) {
+        while (!remote_loader_get_exit(r)) {
+            res = r->init_cb(r);
+            if (res == LV_RES_OK)
+                break;
+
+            struct timespec loop_sleep = {.tv_nsec = 100000000};
+            thrd_sleep(&loop_sleep, NULL);
+        }
+    }
+
+    mtx_unlock(&r->mtx);
+
+    return res;
+}
+
 static lv_res_t remote_loader_init(remote_loader_t *r) {
     if (mtx_init(&r->mtx, mtx_plain) != thrd_success)
         return LV_RES_INV;
@@ -424,7 +466,7 @@ int remote_loader_thread(void *arg) {
             remote_loader_set_activated(r, true);
             if (recv_app(r) == 0) {
                 app_entry_load(&r->entry);
-                break;
+                remote_loader_reset(r);
             } else {
                 remote_loader_set_activated(r, false);
 
@@ -444,6 +486,8 @@ int remote_loader_thread(void *arg) {
         } else {
             break;
         }
+
+        remove(TMP_APP_PATH);
     }
 
     remote_loader_exit(r);

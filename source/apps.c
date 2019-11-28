@@ -343,9 +343,7 @@ lv_res_t app_entry_load(app_entry_t *entry) {
             if (res != LV_RES_OK)
                 return res;
 
-            res = theme_reset();
-            if (res != LV_RES_OK)
-                return res;
+            do_theme_reset();
         } break;
 
         default:
