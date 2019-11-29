@@ -74,6 +74,6 @@ typedef struct {
 lv_res_t theme_init();
 void theme_exit();
 
-lv_res_t theme_reset();
+void do_theme_reset();
 
 theme_t *curr_theme();

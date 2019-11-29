@@ -80,6 +80,9 @@ static asset_t g_assets_list[AssetId_max] = {
 
 static theme_t g_curr_theme;
 
+static lv_task_t *g_reset_task = NULL;
+static bool g_should_reset = false;
+
 static int config_setting_lookup_color(config_setting_t *setting, const char *name, lv_color_t *value) {
     int tmp_col;
 
@@ -278,23 +281,36 @@ static lv_res_t theme_load_styles(theme_t *theme, unzFile zf) {
     return LV_RES_OK;
 }
 
+static lv_res_t theme_reset() {
+    theme_exit();
+
+    lv_res_t res = theme_init();
+    if (res != LV_RES_OK)
+        return res;
+
+    lv_obj_invalidate(lv_scr_act());
+    lv_refr_now(NULL);
+
+    return res;
+}
+
+static void theme_reset_task(lv_task_t *task) {
+    if (g_should_reset) {
+        if (theme_reset() == LV_RES_OK)
+            g_should_reset = false;
+    }
+}
+
 lv_res_t theme_init() {
-    logPrintf("romfsInit\n");
-    Result rc = romfsInit();
-    logPrintf("rc(%#x)\n", rc);
-    if (R_FAILED(rc))
+    if (R_FAILED(romfsInit()))
         return LV_RES_INV;
-    logPrintf("after\n");
 
     unzFile zf_default = unzOpen(DEFAULT_THEME_PATH);
     unzFile zf = unzOpen(THEME_PATH);
 
-    logPrintf("%p %p\n", zf, zf_default);
-
     int i_bad;
     int ret;
     for (int i = 0; i < AssetId_max; i++) {
-        logPrintf("i(%d)\n", i);
         i_bad = i;
         ret = -1;
 
@@ -336,6 +352,11 @@ lv_res_t theme_init() {
     romfsExit();
 
     theme_load_assets(&g_curr_theme, g_assets_list);
+    
+    if (g_reset_task == NULL) {
+        g_reset_task = lv_task_create(theme_reset_task, 100, LV_TASK_PRIO_MID, NULL);
+        lv_task_ready(g_reset_task);
+    }
 
     return LV_RES_OK;
 }
@@ -345,18 +366,8 @@ void theme_exit() {
         asset_clean(&g_assets_list[i]);
 }
 
-lv_res_t theme_reset() {
-    theme_exit();
-
-    lv_res_t res = theme_init();
-    logPrintf("res(%u)\n");
-    if (res != LV_RES_OK)
-        return res;
-
-    lv_obj_invalidate(lv_scr_act());
-    lv_refr_now(NULL);
-
-    return res;
+void do_theme_reset() {
+    g_should_reset = true;
 }
 
 theme_t *curr_theme() {

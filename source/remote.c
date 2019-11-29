@@ -385,34 +385,6 @@ s16 remote_loader_get_progress(remote_loader_t *r) {
     return 100 * ((float) current / (float) total);
 }
 
-static lv_res_t remote_loader_reset(remote_loader_t *r) {
-    mtx_lock(&r->mtx);
-
-    r->flags = 0;
-    r->total = 0;
-    r->current = 0;
-
-    mtx_unlock(&r->mtx);
-
-    if (r->exit_cb != NULL)
-        r->exit_cb(r);
-
-    lv_res_t res = LV_RES_OK;
-
-    if (r->init_cb != NULL) {
-        while (!remote_loader_get_exit(r)) {
-            res = r->init_cb(r);
-            if (res == LV_RES_OK)
-                break;
-
-            struct timespec loop_sleep = {.tv_nsec = 100000000};
-            thrd_sleep(&loop_sleep, NULL);
-        }
-    }
-
-    return res;
-}
-
 static lv_res_t remote_loader_init(remote_loader_t *r) {
     if (mtx_init(&r->mtx, mtx_plain) != thrd_success)
         return LV_RES_INV;
@@ -466,11 +438,18 @@ int remote_loader_thread(void *arg) {
             if (recv_app(r) == 0) {
                 app_entry_load(&r->entry);
 
+                // If the app is a homebrew we want to exit as fast as possible
                 if (r->entry.type != AppEntryType_homebrew) {
                     if (r->error_cb)
                         r->error_cb(r);
 
-                    remote_loader_reset(r);
+                    mtx_lock(&r->mtx);
+
+                    r->flags = 0;
+                    r->total = 0;
+                    r->current = 0;
+
+                    mtx_unlock(&r->mtx);
                 }
             } else {
                 remote_loader_set_activated(r, false);
@@ -491,8 +470,6 @@ int remote_loader_thread(void *arg) {
         } else {
             break;
         }
-
-        remove(TMP_APP_PATH);
     }
 
     remote_loader_exit(r);

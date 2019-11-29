@@ -110,19 +110,54 @@ static void free_current_app_icons() {
 
 static void del_buttons() {
     for (int i = 0; i < num_buttons(); i++) {
+        logPrintf("list: i(%d), obj(%p)\n", i, g_list_buttons[i]);
         lv_obj_del(g_list_buttons[i]);
 
+        logPrintf("before null\n");
         g_list_buttons[i] = NULL;
         g_list_covers[i] = NULL;
+        logPrintf("after null\n");
     }
 
     for (int i = 0; i < 2; i++) {
+        logPrintf("arrow: i(%d), obj(%p)\n", i, g_arrow_buttons[i]);
         if (g_arrow_buttons[i] == NULL)
             continue;
 
+        logPrintf("before delete\n");
         lv_obj_del(g_arrow_buttons[i]);
+        logPrintf("before null)\n");
         g_arrow_buttons[i] = NULL;
+        logPrintf("after null\n");
     }
+}
+
+static void reset_menu_focused_on(char *path) {
+    logPrintf("before del_buttons\n");
+    del_buttons();
+    logPrintf("before free_current_app_icons\n");
+    free_current_app_icons();
+
+    char entry_path[PATH_MAX + 1];
+    strcpy(entry_path, path);
+
+    lv_ll_clear(&g_apps_ll);
+    gen_apps_list();
+
+    int i = 0;
+    app_entry_t *tmp_entry;
+    LV_LL_READ(g_apps_ll, tmp_entry) {
+        if (strcmp(entry_path, tmp_entry->path) == 0)
+            break;
+
+        i++;
+    }
+
+    g_curr_page = i / MAX_LIST_ROWS;
+
+    draw_buttons();
+
+    lv_group_focus_obj(g_list_buttons[i % MAX_LIST_ROWS]);
 }
 
 static void focus_cb(lv_group_t *group, lv_style_t *style) { }
@@ -231,29 +266,7 @@ static void dialog_button_event(lv_obj_t *obj, lv_event_t event) {
                     lv_obj_del(g_dialog_cover);
                     g_dialog_cover = NULL;
 
-                    del_buttons();
-                    free_current_app_icons();
-
-                    char entry_path[PATH_MAX];
-                    strcpy(entry_path, g_dialog_entry->path);
-
-                    lv_ll_clear(&g_apps_ll);
-                    gen_apps_list();
-
-                    int i = 0;
-                    app_entry_t *entry;
-                    LV_LL_READ(g_apps_ll, entry) {
-                        if (strcmp(entry_path, entry->path) == 0)
-                            break;
-
-                        i++;
-                    }
-
-                    g_curr_page = i / MAX_LIST_ROWS;
-
-                    draw_buttons();
-
-                    lv_group_focus_obj(g_list_buttons[i % MAX_LIST_ROWS]);
+                    reset_menu_focused_on(g_dialog_entry->path);
                 } break;
                 
                 case DialogButton_back: {
