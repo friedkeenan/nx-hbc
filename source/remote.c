@@ -389,9 +389,10 @@ static lv_res_t remote_loader_reset(remote_loader_t *r) {
     mtx_lock(&r->mtx);
 
     r->flags = 0;
-
     r->total = 0;
     r->current = 0;
+
+    mtx_unlock(&r->mtx);
 
     if (r->exit_cb != NULL)
         r->exit_cb(r);
@@ -408,8 +409,6 @@ static lv_res_t remote_loader_reset(remote_loader_t *r) {
             thrd_sleep(&loop_sleep, NULL);
         }
     }
-
-    mtx_unlock(&r->mtx);
 
     return res;
 }
@@ -466,7 +465,13 @@ int remote_loader_thread(void *arg) {
             remote_loader_set_activated(r, true);
             if (recv_app(r) == 0) {
                 app_entry_load(&r->entry);
-                remote_loader_reset(r);
+
+                if (r->entry.type != AppEntryType_homebrew) {
+                    if (r->error_cb)
+                        r->error_cb(r);
+
+                    remote_loader_reset(r);
+                }
             } else {
                 remote_loader_set_activated(r, false);
 

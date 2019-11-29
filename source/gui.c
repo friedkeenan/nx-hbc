@@ -725,6 +725,10 @@ void setup_screen() {
 void setup_menu() {
     lv_style_copy(&g_transp_style, &lv_style_plain);
     g_transp_style.body.opa = LV_OPA_TRANSP;
+    g_transp_style.body.padding.left = 0;
+    g_transp_style.body.padding.right = 0;
+    g_transp_style.body.padding.top = 0;
+    g_transp_style.body.padding.bottom = 0;
 
     gen_apps_list();
     draw_buttons();
@@ -772,7 +776,7 @@ static void remote_progress_task(lv_task_t *task) {
             lv_obj_set_style(g_remote_cover, &curr_theme()->dark_opa_64_style);
 
             g_remote_bar = lv_bar_create(g_remote_cover, NULL);
-            lv_obj_set_size(g_remote_bar, REMOTE_PROGRESS_INNER_W + 10, REMOTE_PROGRESS_INNER_H + 10);
+            lv_obj_set_size(g_remote_bar, REMOTE_PROGRESS_INNER_W, REMOTE_PROGRESS_INNER_H);
             lv_obj_align(g_remote_bar, NULL, LV_ALIGN_CENTER, 0, 0);
 
             lv_bar_set_style(g_remote_bar, LV_BAR_STYLE_BG, &g_transp_style);

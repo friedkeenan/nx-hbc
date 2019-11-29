@@ -128,7 +128,6 @@ def main(argv):
                 pass
 
     res = gen_theme.main([tmp_dir, argv[1]])
-    print(res)
     if res != 0:
         return res
 

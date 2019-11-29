@@ -173,6 +173,10 @@ static void theme_init_styles(theme_t *theme) {
     theme->no_apps_mbox_style.text.font = &lv_font_roboto_48;
 
     lv_style_copy(&theme->remote_bar_indic_style, &lv_style_plain);
+    theme->remote_bar_indic_style.body.padding.left = 0;
+    theme->remote_bar_indic_style.body.padding.right = 0;
+    theme->remote_bar_indic_style.body.padding.top = 0;
+    theme->remote_bar_indic_style.body.padding.bottom = 0;
 
     lv_style_copy(&theme->remote_error_mbox_style, &theme->no_apps_mbox_style);
     theme->remote_error_mbox_style.body.opa = LV_OPA_COVER;
@@ -275,15 +279,22 @@ static lv_res_t theme_load_styles(theme_t *theme, unzFile zf) {
 }
 
 lv_res_t theme_init() {
-    if (R_FAILED(romfsInit()))
+    logPrintf("romfsInit\n");
+    Result rc = romfsInit();
+    logPrintf("rc(%#x)\n", rc);
+    if (R_FAILED(rc))
         return LV_RES_INV;
+    logPrintf("after\n");
 
     unzFile zf_default = unzOpen(DEFAULT_THEME_PATH);
     unzFile zf = unzOpen(THEME_PATH);
 
+    logPrintf("%p %p\n", zf, zf_default);
+
     int i_bad;
     int ret;
     for (int i = 0; i < AssetId_max; i++) {
+        logPrintf("i(%d)\n", i);
         i_bad = i;
         ret = -1;
 
@@ -338,6 +349,7 @@ lv_res_t theme_reset() {
     theme_exit();
 
     lv_res_t res = theme_init();
+    logPrintf("res(%u)\n");
     if (res != LV_RES_OK)
         return res;
 

@@ -29,6 +29,7 @@ static AppEntryType get_app_type(char *path) {
 void app_entry_init_base(app_entry_t *entry, char *path) {
     strcpy(entry->path, path);
 
+    entry->args[0] = '\0';
     app_entry_add_arg(entry, path);
 
     char star_path[PATH_MAX + 1];
