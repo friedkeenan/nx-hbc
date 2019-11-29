@@ -51,9 +51,12 @@ def main(argv):
     if not tmp_dir.exists():
         tmp_dir.mkdir()
 
-    icon = Image.open(Path(in_dir, "icon.png"))
-    icon = icon.resize((256, 256)).convert("RGB")
-    icon.save(Path(tmp_dir, "icon.jpg"))
+    try:
+        icon = Image.open(Path(in_dir, "icon.png"))
+        icon = icon.resize((256, 256)).convert("RGB")
+        icon.save(Path(tmp_dir, "icon.jpg"))
+    except FileNotFoundError:
+        pass
 
     cfg_info = {
         "info": {
@@ -86,46 +89,49 @@ def main(argv):
     except FileNotFoundError:
         pass
 
-    with zipfile.ZipFile(Path(in_dir, "theme.zip"), "r") as zf:
-        try:
-            cfg_styles = {
-                "styles": {
-                }
-            }
-
-            with zf.open("theme.xml") as f:
-                xml_styles = ET.parse(f).getroot()
-
-                norm_text_col = xml_styles.find("font_color")
-                if norm_text_col is not None:
-                    cfg_styles["styles"]["normal_text_color"] = color_from_elem(norm_text_col)
-
-                prog_grad = xml_styles.find("progress_gradient")
-                if prog_grad is not None:
-                    main_col = [prog_grad.find("upper_left"), prog_grad.find("upper_right")]
-                    main_col = [color_from_elem(x) for x in main_col if x is not None]
-                    main_col = int(sum(main_col) / len(main_col))
-
-                    grad_col = [prog_grad.find("lower_left"), prog_grad.find("lower_right")]
-                    grad_col = [color_from_elem(x) for x in grad_col if x is not None]
-                    grad_col = int(sum(grad_col) / len(grad_col))
-
-                    cfg_styles["styles"]["remote_bar_main_color"] = main_col
-                    cfg_styles["styles"]["remote_bar_grad_color"] = grad_col
-
-            with Path(tmp_dir, "styles.cfg").open("w") as f:
-                libconf.dump(cfg_styles, f)
-        except KeyError:
-            pass
-
-        for old_name, (new_name, new_size) in asset_names.items():
+    try:
+        with zipfile.ZipFile(Path(in_dir, "theme.zip"), "r") as zf:
             try:
-                with zf.open(old_name, "r") as f:
-                    im = Image.open(f)
-                    im = im.resize(new_size)
-                    im.save(Path(tmp_dir, new_name))
+                cfg_styles = {
+                    "styles": {
+                    }
+                }
+
+                with zf.open("theme.xml") as f:
+                    xml_styles = ET.parse(f).getroot()
+
+                    norm_text_col = xml_styles.find("font_color")
+                    if norm_text_col is not None:
+                        cfg_styles["styles"]["normal_text_color"] = color_from_elem(norm_text_col)
+
+                    prog_grad = xml_styles.find("progress_gradient")
+                    if prog_grad is not None:
+                        main_col = [prog_grad.find("upper_left"), prog_grad.find("upper_right")]
+                        main_col = [color_from_elem(x) for x in main_col if x is not None]
+                        main_col = int(sum(main_col) / len(main_col))
+
+                        grad_col = [prog_grad.find("lower_left"), prog_grad.find("lower_right")]
+                        grad_col = [color_from_elem(x) for x in grad_col if x is not None]
+                        grad_col = int(sum(grad_col) / len(grad_col))
+
+                        cfg_styles["styles"]["remote_bar_main_color"] = main_col
+                        cfg_styles["styles"]["remote_bar_grad_color"] = grad_col
+
+                with Path(tmp_dir, "styles.cfg").open("w") as f:
+                    libconf.dump(cfg_styles, f)
             except KeyError:
                 pass
+
+            for old_name, (new_name, new_size) in asset_names.items():
+                try:
+                    with zf.open(old_name, "r") as f:
+                        im = Image.open(f)
+                        im = im.resize(new_size)
+                        im.save(Path(tmp_dir, new_name))
+                except KeyError:
+                    pass
+    except FileNotFoundError:
+        pass
 
     res = gen_theme.main([tmp_dir, argv[1]])
     if res != 0:
