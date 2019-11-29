@@ -110,32 +110,23 @@ static void free_current_app_icons() {
 
 static void del_buttons() {
     for (int i = 0; i < num_buttons(); i++) {
-        logPrintf("list: i(%d), obj(%p)\n", i, g_list_buttons[i]);
         lv_obj_del(g_list_buttons[i]);
 
-        logPrintf("before null\n");
         g_list_buttons[i] = NULL;
         g_list_covers[i] = NULL;
-        logPrintf("after null\n");
     }
 
     for (int i = 0; i < 2; i++) {
-        logPrintf("arrow: i(%d), obj(%p)\n", i, g_arrow_buttons[i]);
         if (g_arrow_buttons[i] == NULL)
             continue;
 
-        logPrintf("before delete\n");
         lv_obj_del(g_arrow_buttons[i]);
-        logPrintf("before null)\n");
         g_arrow_buttons[i] = NULL;
-        logPrintf("after null\n");
     }
 }
 
 static void reset_menu_focused_on(char *path) {
-    logPrintf("before del_buttons\n");
     del_buttons();
-    logPrintf("before free_current_app_icons\n");
     free_current_app_icons();
 
     char entry_path[PATH_MAX + 1];
