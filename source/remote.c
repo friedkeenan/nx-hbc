@@ -470,6 +470,8 @@ int remote_loader_thread(void *arg) {
         } else {
             break;
         }
+
+        remove(TMP_APP_PATH);
     }
 
     remote_loader_exit(r);
