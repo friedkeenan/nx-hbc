@@ -816,17 +816,21 @@ static void remote_progress_task(lv_task_t *task) {
         sprintf(percent, "%d%%", progress);
         lv_label_set_text(g_remote_percent, percent);
         lv_obj_align(g_remote_percent, NULL, LV_ALIGN_IN_BOTTOM_RIGHT, -10, -10);
-    } else if (remote_loader_get_error(g_remote_loader) && g_remote_error_mbox == NULL) {
-        lv_obj_clean(g_remote_cover);
+    } else if (remote_loader_get_error(g_remote_loader)) {
+        if (g_remote_error_mbox == NULL) {
+            lv_obj_clean(g_remote_cover);
 
-        g_remote_error_mbox = lv_mbox_create(g_remote_cover, NULL);
-        lv_obj_set_style(g_remote_error_mbox, &curr_theme()->remote_error_mbox_style);
-        lv_obj_set_width(g_remote_error_mbox, LIST_BTN_W + 40);
-        lv_mbox_set_text(g_remote_error_mbox, text_get(StrId_error));
-        lv_mbox_add_btns(g_remote_error_mbox, g_ok_btns);
-        lv_obj_align(g_remote_error_mbox, NULL, LV_ALIGN_CENTER, 0, 0);
-        
-        lv_obj_set_event_cb(g_remote_error_mbox, remote_error_mbox_event_cb);
+            g_remote_error_mbox = lv_mbox_create(g_remote_cover, NULL);
+            lv_obj_set_style(g_remote_error_mbox, &curr_theme()->remote_error_mbox_style);
+            lv_obj_set_width(g_remote_error_mbox, LIST_BTN_W + 40);
+            lv_mbox_set_text(g_remote_error_mbox, text_get(StrId_error));
+            lv_mbox_add_btns(g_remote_error_mbox, g_ok_btns);
+            lv_obj_align(g_remote_error_mbox, NULL, LV_ALIGN_CENTER, 0, 0);
+            
+            lv_obj_set_event_cb(g_remote_error_mbox, remote_error_mbox_event_cb);
+        }
+    } else if (g_remote_cover != NULL) {
+        lv_obj_del(g_remote_cover);
     }
 }
 
