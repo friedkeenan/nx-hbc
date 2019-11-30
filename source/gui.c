@@ -14,6 +14,7 @@
 #include "net_status.h"
 #include "settings.h"
 #include "theme.h"
+#include "text.h"
 #include "util.h"
 
 enum {
@@ -42,8 +43,6 @@ static lv_obj_t *g_dialog_buttons[DialogButton_max] = {0};
 static lv_obj_t *g_dialog_cover = NULL;
 static app_entry_t *g_dialog_entry = NULL;
 
-static char *g_dialog_buttons_text[] = {"Delete", "Load", NULL /* Star/Unstar */, "Back"};
-
 static int g_list_index = 0; // -3 for right arrow, -2 for left
 
 static lv_obj_t *g_arrow_buttons[2] = {0}; // {next, prev}
@@ -66,7 +65,7 @@ static lv_obj_t *g_net_icon = NULL;
 
 static lv_style_t g_transp_style;
 
-static const char *g_ok_btns[] = {"OK", ""};
+static const char *g_ok_btns[] = {NULL, ""};
 
 static void change_page(int dir);
 static void draw_buttons();
@@ -299,16 +298,20 @@ static void draw_app_dialog() {
         lv_obj_align(star, icon, LV_ALIGN_IN_TOP_LEFT, -STAR_BIG_W / 2, -STAR_BIG_H / 2);
     }
 
-    char version_text[sizeof("Version: ") + APP_VER_LEN] = {0};
-    sprintf(version_text, "Version: %s", g_dialog_entry->version);
+    const char *tmp_fmt = text_get(StrId_version);
+    char version_text[strlen(tmp_fmt) - 2 + APP_VER_LEN + 1];
+    version_text[0] = '\0';
+    sprintf(version_text, tmp_fmt, g_dialog_entry->version);
 
     lv_obj_t *ver = lv_label_create(dialog_bg, NULL);
     lv_obj_set_style(ver, &curr_theme()->normal_28_style);
     lv_label_set_text(ver, version_text);
     lv_obj_align(ver, icon, LV_ALIGN_OUT_RIGHT_TOP, 20, 20);
 
-    char author_text[sizeof("Author: ") + APP_AUTHOR_LEN] = {0};
-    sprintf(author_text, "Author: %s", g_dialog_entry->author);
+    tmp_fmt = text_get(StrId_author);
+    char author_text[strlen(tmp_fmt) - 2 + APP_AUTHOR_LEN + 1];
+    author_text[0] = '\0';
+    sprintf(author_text, tmp_fmt, g_dialog_entry->author);
 
     lv_obj_t *auth = lv_label_create(dialog_bg, ver);
     lv_label_set_text(auth, author_text);
@@ -325,7 +328,7 @@ static void draw_app_dialog() {
 
     button_labels[0] = lv_label_create(g_dialog_buttons[0], NULL);
     lv_obj_set_style(button_labels[0], &curr_theme()->normal_28_style);
-    lv_label_set_static_text(button_labels[0], g_dialog_buttons_text[DialogButton_min]);
+    lv_label_set_static_text(button_labels[0], text_get(StrId_delete));
 
     for (int i = 1; i < DialogButton_max; i++) {
         g_dialog_buttons[i] = lv_imgbtn_create(dialog_bg, g_dialog_buttons[i - 1]);
@@ -335,11 +338,11 @@ static void draw_app_dialog() {
 
         if (i == DialogButton_star) {
             if (g_dialog_entry->starred)
-                lv_label_set_text(button_labels[i], "Unstar");
+                lv_label_set_static_text(button_labels[i], text_get(StrId_unstar));
             else
-                lv_label_set_text(button_labels[i], "Star");
+                lv_label_set_static_text(button_labels[i], text_get(StrId_star));
         } else {
-            lv_label_set_static_text(button_labels[i], g_dialog_buttons_text[i]);
+            lv_label_set_static_text(button_labels[i], text_get(StrId_delete + i));
         }
     }
 
@@ -664,7 +667,7 @@ static void draw_buttons() {
         lv_mbox_set_style(mbox, LV_MBOX_STYLE_BG, &curr_theme()->no_apps_mbox_style);
         lv_obj_set_width(mbox, LIST_BTN_W);
 
-        lv_mbox_set_text(mbox, "You have no apps!\nPlease put your apps under \"" APP_DIR "\"");
+        lv_mbox_set_text(mbox, text_get(StrId_no_apps));
 
         lv_obj_align(mbox, NULL, LV_ALIGN_CENTER, 0, 0);
         
@@ -801,10 +804,11 @@ static void remote_progress_task(lv_task_t *task) {
 
         s16 progress = remote_loader_get_progress(g_remote_loader);
         lv_bar_set_value(g_remote_bar, progress, LV_ANIM_OFF);
-        
-        char receiving[PATH_MAX + 1 + strlen("Receiving: ")];
+
+        const char *tmp_fmt = text_get(StrId_receiving);
+        char receiving[PATH_MAX + 1 + strlen(tmp_fmt) - 2];
         receiving[0] = '\0';
-        sprintf(receiving, "Receiving: %s", get_name(g_remote_loader->entry.path));
+        sprintf(receiving, tmp_fmt, get_name(g_remote_loader->entry.path));
         lv_label_set_text(g_remote_name, receiving);
 
         char percent[8];
@@ -818,13 +822,11 @@ static void remote_progress_task(lv_task_t *task) {
         g_remote_error_mbox = lv_mbox_create(g_remote_cover, NULL);
         lv_obj_set_style(g_remote_error_mbox, &curr_theme()->remote_error_mbox_style);
         lv_obj_set_width(g_remote_error_mbox, LIST_BTN_W + 40);
-        lv_mbox_set_text(g_remote_error_mbox, "An error has\noccured");
+        lv_mbox_set_text(g_remote_error_mbox, text_get(StrId_error));
         lv_mbox_add_btns(g_remote_error_mbox, g_ok_btns);
         lv_obj_align(g_remote_error_mbox, NULL, LV_ALIGN_CENTER, 0, 0);
         
         lv_obj_set_event_cb(g_remote_error_mbox, remote_error_mbox_event_cb);
-    } else if (g_remote_cover != NULL) {
-        lv_obj_del(g_remote_cover);
     }
 }
 
@@ -865,13 +867,22 @@ void setup_misc() {
 
         thrd_create(&g_remote_thread, remote_loader_thread, g_remote_loader);
 
+        g_ok_btns[0] = text_get(StrId_ok);
+
         lv_task_t *task = lv_task_create(remote_progress_task, 5, LV_TASK_PRIO_MID, NULL);
         lv_task_ready(task);
     }
 
     if (curr_settings()->show_limit_warn && has_limitations()) {
         lv_obj_t *warn = lv_label_create(lv_scr_act(), NULL);
-        lv_label_set_text(warn, LIMITATIONS_TEXT);
+
+        const char *content = text_get(StrId_limit_warn);
+        char limit_text[strlen(content) + 5];
+        limit_text[0] = '\0';
+        sprintf(limit_text, LV_SYMBOL_WARNING " %s " LV_SYMBOL_WARNING, content);
+
+        lv_label_set_text(warn, limit_text);
+
         lv_obj_set_style(warn, &curr_theme()->warn_48_style);
         lv_obj_align(warn, NULL, LV_ALIGN_IN_BOTTOM_MID, 0, -20);
     }

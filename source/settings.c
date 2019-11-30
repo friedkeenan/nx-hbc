@@ -1,6 +1,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <libconfig.h>
+#include <switch.h>
 #include <lvgl/lvgl.h>
 
 #include "settings.h"
@@ -12,13 +13,29 @@ static settings_t g_default_settings = {
     .use_gyro = false,
     .show_limit_warn = true,
     .remote_type = RemoteLoaderType_net,
+    .lang_id = SetLanguage_ENUS,
 };
 
 static settings_t g_curr_settings;
 
+static inline u64 str_to_lang_code(const char *str) {
+    u64 code = 0;
+
+    for (int i = 0; i < sizeof(code); i++) {
+        if (str[i] == '\0')
+            break;
+
+        code |= str[i] << 8 * str[i];
+    }
+
+    return code;
+}
+
 lv_res_t settings_init() {
     if (mkdirs(SETTINGS_DIR, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0)
         return LV_RES_INV;
+
+    u64 lang_code = 0;
 
     config_t cfg;
     config_setting_t *settings;
@@ -40,11 +57,30 @@ lv_res_t settings_init() {
         if (config_setting_lookup_int(settings, "remote_type", &remote_type) != CONFIG_TRUE)
             remote_type = g_default_settings.remote_type;
         g_curr_settings.remote_type = remote_type;
+
+        const char *lang;
+        if (config_setting_lookup_string(settings, "language", &lang) == CONFIG_TRUE)
+            lang_code = str_to_lang_code(lang);
     } else {
         g_curr_settings = g_default_settings;
     }
 
     config_destroy(&cfg);
+
+    if (R_SUCCEEDED(setInitialize())) {
+        if (lang_code == 0)
+            setGetSystemLanguage(&lang_code);
+
+        SetLanguage lang_id;
+        if (R_FAILED(setMakeLanguage(lang_code, &lang_id)))
+            lang_id = g_default_settings.lang_id;
+
+        g_curr_settings.lang_id = lang_id;
+
+        setExit();
+    } else {
+        g_curr_settings.lang_id = g_default_settings.lang_id;
+    }
 
     return LV_RES_OK;
 }
