@@ -37,11 +37,11 @@ def main(argv):
         for p in res_dir.iterdir():
             if p.suffix in ignore_exts:
                 continue
-            elif p.suffix != ".png":
+            elif p.suffix == ".png":
+                add_asset_to_theme(zf, p, f"{p.stem}.bin")
+            else:
                 with p.open("rb") as f:
                     zf.writestr(p.name, f.read())
-            else:
-                add_asset_to_theme(zf, p, f"{p.stem}.bin")
 
     return 0
 
