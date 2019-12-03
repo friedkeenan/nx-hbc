@@ -180,20 +180,14 @@ int music_thread(void *arg) {
 
     AudioOutBuffer loop_buf;
     if (decope_mp3(mh, curr_theme()->loop_music->buffer, curr_theme()->loop_music->size, &loop_buf) != MPG123_OK) {
+        free(intro_buf.buffer);
         music_exit(mh);
         return -1;
     }
 
 
-    if (R_FAILED(audoutAppendAudioOutBuffer(&intro_buf))) {
-        music_exit(mh);
-        return -1;
-    }
-
-    if (R_FAILED(audoutAppendAudioOutBuffer(&loop_buf))) {
-        music_exit(mh);
-        return -1;
-    }
+    audoutAppendAudioOutBuffer(&intro_buf);
+    audoutAppendAudioOutBuffer(&loop_buf);
 
     while (should_loop()) {
         AudioOutBuffer *released;

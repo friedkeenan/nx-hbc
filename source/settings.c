@@ -12,7 +12,12 @@
 static settings_t g_default_settings = {
     .use_gyro = false,
     .show_limit_warn = true,
+
+    #ifdef MUSIC
+
     .play_bgm = true,
+
+    #endif
 
     .remote_type = RemoteLoaderType_net,
 
@@ -57,9 +62,13 @@ lv_res_t settings_init() {
             tmp_int = g_default_settings.show_limit_warn;
         g_curr_settings.show_limit_warn = tmp_int;
 
+        #ifdef MUSIC
+
         if (config_setting_lookup_bool(settings, "play_bgm", &tmp_int) != CONFIG_TRUE)
             tmp_int = g_default_settings.play_bgm;
         g_curr_settings.play_bgm = tmp_int;
+
+        #endif
 
         if (config_setting_lookup_int(settings, "remote_type", &tmp_int) != CONFIG_TRUE)
             tmp_int = g_default_settings.remote_type;
