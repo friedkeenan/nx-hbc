@@ -12,7 +12,10 @@
 static settings_t g_default_settings = {
     .use_gyro = false,
     .show_limit_warn = true,
+    .play_bgm = true,
+
     .remote_type = RemoteLoaderType_net,
+
     .lang_id = SetLanguage_ENUS,
 };
 
@@ -43,24 +46,28 @@ lv_res_t settings_init() {
     config_init(&cfg);
 
     if (config_read_file(&cfg, SETTINGS_FILE) == CONFIG_TRUE && (settings = config_lookup(&cfg, "settings")) != NULL) {
-        int use_gyro;
-        if (config_setting_lookup_bool(settings, "use_gyro", &use_gyro) != CONFIG_TRUE)
-            use_gyro = g_default_settings.use_gyro;
-        g_curr_settings.use_gyro = use_gyro;
+        int tmp_int;
+        const char *tmp_str;
 
-        int show_limit_warn;
-        if (config_setting_lookup_bool(settings, "show_limit_warn", &show_limit_warn) != CONFIG_TRUE)
-            show_limit_warn = g_default_settings.show_limit_warn;
-        g_curr_settings.show_limit_warn = show_limit_warn;
+        if (config_setting_lookup_bool(settings, "use_gyro", &tmp_int) != CONFIG_TRUE)
+            tmp_int = g_default_settings.use_gyro;
+        g_curr_settings.use_gyro = tmp_int;
 
-        int remote_type;
-        if (config_setting_lookup_int(settings, "remote_type", &remote_type) != CONFIG_TRUE)
-            remote_type = g_default_settings.remote_type;
-        g_curr_settings.remote_type = remote_type;
+        if (config_setting_lookup_bool(settings, "show_limit_warn", &tmp_int) != CONFIG_TRUE)
+            tmp_int = g_default_settings.show_limit_warn;
+        g_curr_settings.show_limit_warn = tmp_int;
 
-        const char *lang;
-        if (config_setting_lookup_string(settings, "language", &lang) == CONFIG_TRUE)
-            lang_code = str_to_lang_code(lang);
+        if (config_setting_lookup_bool(settings, "play_bgm", &tmp_int) != CONFIG_TRUE)
+            tmp_int = g_default_settings.play_bgm;
+        g_curr_settings.play_bgm = tmp_int;
+
+        if (config_setting_lookup_int(settings, "remote_type", &tmp_int) != CONFIG_TRUE)
+            tmp_int = g_default_settings.remote_type;
+        g_curr_settings.remote_type = tmp_int;
+
+
+        if (config_setting_lookup_string(settings, "language", &tmp_str) == CONFIG_TRUE)
+            lang_code = str_to_lang_code(tmp_str);
     } else {
         g_curr_settings = g_default_settings;
     }

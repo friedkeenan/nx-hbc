@@ -13,7 +13,10 @@ typedef enum {
 typedef struct {
     bool use_gyro;
     bool show_limit_warn;
+    bool play_bgm;
+
     RemoteLoaderType remote_type;
+
     u8 lang_id;
 } settings_t;
 

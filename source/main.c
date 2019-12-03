@@ -9,21 +9,46 @@
 #include "gui.h"
 #include "settings.h"
 
+#ifdef MUSIC
+
+#include "music.h"
+
+#endif
+
 static bool g_should_loop = true;
+static mtx_t g_loop_mtx;
 
 void stop_main_loop() {
+    mtx_lock(&g_loop_mtx);
     g_should_loop = false;
+    mtx_unlock(&g_loop_mtx);
+}
+
+bool should_loop() {
+    bool loop;
+
+    mtx_lock(&g_loop_mtx);
+    loop = g_should_loop;
+    mtx_unlock(&g_loop_mtx);
+
+    return loop;
 }
 
 int main(int argc, char **argv) {
     appletLockExit();
 
     logInitialize("sdmc:/hbc.log");
-
+    
     lv_init();
-
+    
     settings_init();
     theme_init();
+
+    /*#ifdef MUSIC
+
+    music_thread(NULL);
+
+    #endif*/
 
     driversInitialize();
     
@@ -33,7 +58,9 @@ int main(int argc, char **argv) {
     setup_menu();
     setup_misc();
 
-    while (appletMainLoop() && g_should_loop) {
+    mtx_init(&g_loop_mtx, mtx_plain);
+
+    while (appletMainLoop() && should_loop()) {
         hidScanInput();
         u64 kHeld = hidKeysHeld(CONTROLLER_P1_AUTO);
 
@@ -42,6 +69,8 @@ int main(int argc, char **argv) {
 
         lv_task_handler();
     }
+
+    mtx_destroy(&g_loop_mtx);
 
     gui_exit();
 

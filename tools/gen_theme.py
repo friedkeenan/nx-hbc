@@ -16,7 +16,7 @@ def add_asset_to_theme(zf, path, new_path):
     zf.writestr(new_path, im.tobytes())
 
 def main(argv):
-    usage = "Usage: gen_theme.py <resources folder> <output theme.zip>"
+    usage = "Usage: gen_theme.py <resources folder> <output theme.zip> [ignore extension...]"
 
     if len(argv) < 2:
         print(usage)
@@ -31,9 +31,13 @@ def main(argv):
     if not theme_path.parent.exists():
         os.makedirs(theme_path.parent)
 
+    ignore_exts = argv[2:]
+
     with zipfile.ZipFile(theme_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for p in res_dir.iterdir():
-            if p.suffix == ".cfg" or p.name == "icon.jpg":
+            if p.suffix in ignore_exts:
+                continue
+            elif p.suffix != ".png":
                 with p.open("rb") as f:
                     zf.writestr(p.name, f.read())
             else:

@@ -19,12 +19,19 @@
 
 #include <minizip/unzip.h>
 #include <libconfig.h>
+#include <threads.h>
 #include <lvgl/lvgl.h>
 #include <switch.h>
 
 #include "theme.h"
 #include "settings.h"
 #include "log.h"
+
+#ifdef MUSIC
+
+#include "music.h"
+
+#endif
 
 #define DEFAULT_THEME_PATH "romfs:/theme.zip"
 
@@ -49,14 +56,15 @@ typedef enum {
     AssetId_network_inactive,
     AssetId_network_active,
 
+    #ifdef MUSIC
+
+    AssetId_intro_music,
+    AssetId_loop_music,
+
+    #endif
+
     AssetId_max
 } AssetId;
-
-typedef struct {
-    void *buffer;
-    size_t size;
-    const char *file_name;
-} asset_t;
 
 static asset_t g_assets_list[AssetId_max] = {
     GEN_ASSET("background.bin"),
@@ -76,12 +84,26 @@ static asset_t g_assets_list[AssetId_max] = {
     GEN_ASSET("remote_progress.bin"),
     GEN_ASSET("network_inactive.bin"),
     GEN_ASSET("network_active.bin"),
+
+    #ifdef MUSIC
+
+    GEN_ASSET("intro.mp3"),
+    GEN_ASSET("loop.mp3"),
+
+    #endif
 };
 
 static theme_t g_curr_theme;
 
 static lv_task_t *g_reset_task = NULL;
 static bool g_should_reset = false;
+static mtx_t g_reset_mtx;
+
+#ifdef MUSIC
+
+static thrd_t g_music_thread;
+
+#endif
 
 static int config_setting_lookup_color(config_setting_t *setting, const char *name, lv_color_t *value) {
     int tmp_col;
@@ -295,10 +317,14 @@ static lv_res_t theme_reset() {
 }
 
 static void theme_reset_task(lv_task_t *task) {
+    mtx_lock(&g_reset_mtx);
+
     if (g_should_reset) {
         if (theme_reset() == LV_RES_OK)
             g_should_reset = false;
     }
+
+    mtx_unlock(&g_reset_mtx);
 }
 
 lv_res_t theme_init() {
@@ -352,9 +378,22 @@ lv_res_t theme_init() {
     romfsExit();
 
     theme_load_assets(&g_curr_theme, g_assets_list);
-    
+
+    #ifdef MUSIC
+
+    if (curr_settings()->play_bgm) {
+        g_curr_theme.intro_music = &g_assets_list[AssetId_intro_music];
+        g_curr_theme.loop_music = &g_assets_list[AssetId_loop_music];
+
+        thrd_create(&g_music_thread, music_thread, NULL);
+    }
+
+    #endif
+
+    mtx_init(&g_reset_mtx, mtx_plain);
+
     if (g_reset_task == NULL) {
-        g_reset_task = lv_task_create(theme_reset_task, 100, LV_TASK_PRIO_MID, NULL);
+        g_reset_task = lv_task_create(theme_reset_task, 500, LV_TASK_PRIO_MID, NULL);
         lv_task_ready(g_reset_task);
     }
 
@@ -364,10 +403,21 @@ lv_res_t theme_init() {
 void theme_exit() {
     for (int i = 0; i < AssetId_max; i++)
         asset_clean(&g_assets_list[i]);
+
+    #ifdef MUSIC
+
+    if (curr_settings()->play_bgm) {
+        stop_music_loop();
+        thrd_join(g_music_thread, NULL);
+    }
+
+    #endif
 }
 
 void do_theme_reset() {
+    mtx_lock(&g_reset_mtx);
     g_should_reset = true;
+    mtx_unlock(&g_reset_mtx);
 }
 
 theme_t *curr_theme() {

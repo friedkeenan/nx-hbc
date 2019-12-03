@@ -37,6 +37,12 @@
 #define CURSOR_H 96
 
 typedef struct {
+    void *buffer;
+    size_t size;
+    const char *file_name;
+} asset_t;
+
+typedef struct {
     lv_img_dsc_t background_dsc;
 
     lv_img_dsc_t star_dscs[2]; // {small, big}
@@ -69,6 +75,13 @@ typedef struct {
     lv_style_t normal_48_style;
 
     lv_style_t warn_48_style;
+
+    #ifdef MUSIC
+
+    asset_t *intro_music;
+    asset_t *loop_music;
+
+    #endif
 } theme_t;
 
 lv_res_t theme_init();
