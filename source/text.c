@@ -46,7 +46,7 @@ static const char *g_strings[StrId_max][SetLanguage_Total] = {
     },
 
     [StrId_author] = {
-        STR_EN("Author: %s"),
+        STR_EN("Author: "),
     },
 
     [StrId_receiving] = {

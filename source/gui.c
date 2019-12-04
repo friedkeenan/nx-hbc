@@ -285,6 +285,9 @@ static void draw_app_dialog() {
 
     lv_obj_t *name = lv_label_create(dialog_bg, NULL);
     lv_obj_set_style(name, &curr_theme()->normal_48_style);
+    lv_label_set_align(name, LV_LABEL_ALIGN_CENTER);
+    lv_label_set_long_mode(name, LV_LABEL_LONG_SROLL);
+    lv_obj_set_width(name, DIALOG_BG_W - 40);
     lv_label_set_static_text(name, g_dialog_entry->name);
     lv_obj_align(name, NULL, LV_ALIGN_IN_TOP_MID, 0, 20);
 
@@ -308,14 +311,15 @@ static void draw_app_dialog() {
     lv_label_set_text(ver, version_text);
     lv_obj_align(ver, icon, LV_ALIGN_OUT_RIGHT_TOP, 20, 20);
 
-    tmp_fmt = text_get(StrId_author);
-    char author_text[strlen(tmp_fmt) - 2 + APP_AUTHOR_LEN + 1];
-    author_text[0] = '\0';
-    sprintf(author_text, tmp_fmt, g_dialog_entry->author);
+    lv_obj_t *auth_1 = lv_label_create(dialog_bg, ver);
+    lv_obj_align(auth_1, icon, LV_ALIGN_OUT_RIGHT_TOP, 20, 20 + 28 + 10);
+    lv_label_set_static_text(auth_1, text_get(StrId_author));
 
-    lv_obj_t *auth = lv_label_create(dialog_bg, ver);
-    lv_label_set_text(auth, author_text);
-    lv_obj_align(auth, icon, LV_ALIGN_OUT_RIGHT_TOP, 20, 20 + 28 + 10);
+    lv_obj_t *auth_2 = lv_label_create(dialog_bg, auth_1);
+    lv_obj_align(auth_2, auth_1, LV_ALIGN_OUT_RIGHT_MID, 0, 0);
+    lv_label_set_long_mode(auth_2, LV_LABEL_LONG_BREAK);
+    lv_obj_set_width(auth_2, DIALOG_BG_W - lv_obj_get_x(auth_2) - 20);
+    lv_label_set_static_text(auth_2, g_dialog_entry->author);
 
     g_dialog_buttons[0] = lv_imgbtn_create(dialog_bg, NULL);
     lv_imgbtn_set_src(g_dialog_buttons[0], LV_BTN_STATE_REL, &curr_theme()->dialog_btns_dscs[0]);
@@ -474,23 +478,6 @@ static void arrow_button_event(lv_obj_t *obj, lv_event_t event) {
 static void draw_entry_on_obj(lv_obj_t *obj, app_entry_t *entry) {
     u8 offset = (LIST_BTN_H - APP_ICON_SMALL_H) / 2;
 
-    lv_obj_t *icon_small = lv_img_create(obj, NULL);
-    lv_img_set_src(icon_small, &entry->icon_small);
-    lv_obj_align(icon_small, NULL, LV_ALIGN_IN_LEFT_MID, offset, 0);
-
-    if (entry->starred) {
-        lv_obj_t *star = lv_img_create(obj, NULL);
-        lv_img_set_src(star, &curr_theme()->star_dscs[0]);
-        lv_obj_align(star, icon_small, LV_ALIGN_IN_TOP_LEFT, -STAR_SMALL_W / 2, -STAR_SMALL_H / 2);
-    }
-
-    lv_obj_t *name = lv_label_create(obj, NULL);
-    lv_label_set_style(name, LV_LABEL_STYLE_MAIN, &curr_theme()->normal_28_style);
-    lv_label_set_static_text(name, entry->name);
-    lv_label_set_align(name, LV_LABEL_ALIGN_LEFT);
-    lv_label_set_long_mode(name, LV_LABEL_LONG_CROP);
-    lv_obj_align(name, icon_small, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
-
     lv_obj_t *author = lv_label_create(obj, NULL);
     lv_label_set_style(author, LV_LABEL_STYLE_MAIN, &curr_theme()->normal_16_style);
     lv_label_set_align(author, LV_LABEL_ALIGN_RIGHT);
@@ -500,6 +487,23 @@ static void draw_entry_on_obj(lv_obj_t *obj, app_entry_t *entry) {
     lv_obj_t *ver = lv_label_create(obj, author);
     lv_label_set_static_text(ver, entry->version);
     lv_obj_align(ver, NULL, LV_ALIGN_IN_TOP_RIGHT, -offset, offset);
+    
+    lv_obj_t *icon_small = lv_img_create(obj, NULL);
+    lv_img_set_src(icon_small, &entry->icon_small);
+    lv_obj_align(icon_small, NULL, LV_ALIGN_IN_LEFT_MID, offset, 0);
+
+    if (entry->starred) {
+        lv_obj_t *star = lv_img_create(obj, NULL);
+        lv_img_set_src(star, &curr_theme()->star_dscs[0]);
+        lv_obj_align(star, icon_small, LV_ALIGN_IN_TOP_LEFT, -STAR_SMALL_W / 2, -STAR_SMALL_H / 2);
+    }
+    
+    lv_obj_t *name = lv_label_create(obj, NULL);
+    lv_label_set_style(name, LV_LABEL_STYLE_MAIN, &curr_theme()->normal_28_style);
+    lv_label_set_static_text(name, entry->name);
+    lv_label_set_align(name, LV_LABEL_ALIGN_LEFT);
+    lv_label_set_long_mode(name, LV_LABEL_LONG_CROP);
+    lv_obj_align(name, icon_small, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
 }
 
 static void draw_arrow_button(int idx) {

@@ -29,38 +29,32 @@ static bool should_loop() {
 }
 
 static int decope_mp3(mpg123_handle *mh, void *in_buffer, size_t in_size, AudioOutBuffer *out_buffer) {
-    logPrintf("decode start\n");
     int err = mpg123_open_feed(mh);
     if (err != MPG123_OK)
         return err;
-    logPrintf("after open\n");
 
     err = mpg123_feed(mh, in_buffer, in_size);
     if (err != MPG123_OK) {
         mpg123_close(mh);
         return err;
     }
-    logPrintf("after feed\n");
 
     long rate;
     int channels, encoding;
     err = mpg123_getformat(mh, &rate, &channels, &encoding);
     if (err != MPG123_OK) {
-        logPrintf("getformat: %s\n", mpg123_plain_strerror(err));
         mpg123_close(mh);
         return err;
     }
 
     err = mpg123_format_none(mh);
     if (err != MPG123_OK) {
-        logPrintf("format_none: %s\n", mpg123_plain_strerror(err));
         mpg123_close(mh);
         return err;
     }
 
     err = mpg123_format(mh, rate, channels, encoding);
     if (err != MPG123_OK) {
-        logPrintf("format: %s\n", mpg123_plain_strerror(err));
         mpg123_close(mh);
         return err;
     }
@@ -70,13 +64,11 @@ static int decope_mp3(mpg123_handle *mh, void *in_buffer, size_t in_size, AudioO
         mpg123_close(mh);
         return length_samp;
     }
-    logPrintf("length_samp(%#lx)\n", length_samp);
 
     size_t data_size = length_samp * audoutGetChannelCount() * sizeof(s16);
     size_t buffer_size = (data_size + 0xfff) & ~0xfff; // Align to 0x1000 bytes
     void *buffer = memalign(0x1000, buffer_size);
 
-    logPrintf("before read\n");
     size_t done;
     err = mpg123_read(mh, buffer, data_size, &done);
     if (err != MPG123_OK) {
@@ -84,7 +76,6 @@ static int decope_mp3(mpg123_handle *mh, void *in_buffer, size_t in_size, AudioO
         mpg123_close(mh);
         return err;
     }
-    logPrintf("after read\n");
 
     mpg123_close(mh);
 
@@ -170,8 +161,6 @@ int music_thread(void *arg) {
     if (music_init(&mh) != 0)
         return -1;
 
-    logPrintf("after init\n");
-
     AudioOutBuffer intro_buf;
     if (decope_mp3(mh, curr_theme()->intro_music->buffer, curr_theme()->intro_music->size, &intro_buf) != MPG123_OK) {
         music_exit(mh);
@@ -185,7 +174,6 @@ int music_thread(void *arg) {
         return -1;
     }
 
-
     audoutAppendAudioOutBuffer(&intro_buf);
     audoutAppendAudioOutBuffer(&loop_buf);
 
@@ -194,7 +182,6 @@ int music_thread(void *arg) {
         u32 released_count;
         
         if (R_SUCCEEDED(audoutWaitPlayFinish(&released, &released_count, 1e+6L))) {
-            logPrintf("released(%p), released_count(%u)\n", released, released_count);
             audoutAppendAudioOutBuffer(&loop_buf);
         }
     }
