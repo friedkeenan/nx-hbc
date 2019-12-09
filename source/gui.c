@@ -131,6 +131,7 @@ static void reset_menu_focused_on(char *path) {
 
     char entry_path[PATH_MAX + 1];
     strncpy(entry_path, path, PATH_MAX);
+    entry_path[PATH_MAX] = '\0';
 
     lv_ll_clear(&g_apps_ll);
     gen_apps_list();

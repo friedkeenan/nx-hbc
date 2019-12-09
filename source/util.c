@@ -39,6 +39,7 @@ int mkdirs(char *path, mode_t mode) {
 
     char path_dup[PATH_MAX + 1];
     strncpy(path_dup, path, PATH_MAX);
+    path_dup[PATH_MAX] = '\0';
 
     for (char *tmp_str = strtok(path_dup, "/"); tmp_str != NULL; tmp_str = strtok(NULL, "/")) {
         strcat(tmp_dir, tmp_str);

@@ -288,6 +288,7 @@ void app_entry_get_star_path(app_entry_t *entry, char *out_path) {
 
     strncpy(out_name, ".", PATH_MAX - out_name_len);
     strncpy(out_name + 1, get_name(entry->path), PATH_MAX - out_name_len - 1);
+    out_path[PATH_MAX] = '\0';
 
     strcat(out_name, ".star");
 }

@@ -263,6 +263,8 @@ static int recv_app(remote_loader_t *r) {
                 case AppEntryType_homebrew: {
                     char tmp_path[PATH_MAX + 1];
                     strncpy(tmp_path, r->entry.path, PATH_MAX);
+                    tmp_path[PATH_MAX] = '\0';
+
                     *(get_name(tmp_path)) = '\0';
                     logPrintf("tmp_path(%s)\n", tmp_path);
 
