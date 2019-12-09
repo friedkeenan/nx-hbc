@@ -184,9 +184,7 @@ static int recv_app(remote_loader_t *r) {
 
     // Does the path need to be sanitized?
 
-    strcpy(r->entry.path, APP_DIR);
-    strcat(r->entry.path, "/");
-    strcat(r->entry.path, file_name);
+    snprintf(r->entry.path, PATH_MAX + 1, APP_DIR "/%s", file_name);
     app_entry_init_base(&r->entry, r->entry.path);
     logPrintf("path: %s\n", r->entry.path);
 
@@ -264,7 +262,7 @@ static int recv_app(remote_loader_t *r) {
             switch (r->entry.type) {
                 case AppEntryType_homebrew: {
                     char tmp_path[PATH_MAX + 1];
-                    strcpy(tmp_path, r->entry.path);
+                    strncpy(tmp_path, r->entry.path, PATH_MAX);
                     *(get_name(tmp_path)) = '\0';
                     logPrintf("tmp_path(%s)\n", tmp_path);
 
@@ -274,7 +272,7 @@ static int recv_app(remote_loader_t *r) {
                 } break;
 
                 case AppEntryType_theme: {
-                    strcpy(r->entry.path, TMP_APP_PATH);
+                    strncpy(r->entry.path, TMP_APP_PATH, PATH_MAX);
                 } break;
 
                 default: {

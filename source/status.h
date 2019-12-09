@@ -8,7 +8,9 @@ typedef enum {
     NetStatus_connected,    
 } NetStatus;
 
-lv_res_t net_status_init();
-void net_status_exit();
+lv_res_t status_init();
+void status_exit();
 
 NetStatus get_net_status();
+
+lv_res_t get_thermal_status(s32 *temp);

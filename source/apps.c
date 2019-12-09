@@ -27,7 +27,8 @@ static AppEntryType get_app_type(char *path) {
 }
 
 void app_entry_init_base(app_entry_t *entry, char *path) {
-    strcpy(entry->path, path);
+    strncpy(entry->path, path, PATH_MAX);
+    entry->path[PATH_MAX] = '\0';
 
     entry->args[0] = '\0';
     app_entry_add_arg(entry, path);
@@ -187,9 +188,14 @@ lv_res_t app_entry_init_info(app_entry_t *entry) {
                 return LV_RES_INV;
             }
 
-            strcpy(entry->name, nacp.lang[0].name);
-            strcpy(entry->author, nacp.lang[0].author);
-            strcpy(entry->version, nacp.version);
+            strncpy(entry->name, nacp.lang[0].name, APP_NAME_LEN - 1);
+            entry->name[APP_NAME_LEN - 1] = '\0';
+
+            strncpy(entry->author, nacp.lang[0].author, APP_AUTHOR_LEN - 1);
+            entry->author[APP_AUTHOR_LEN - 1] = '\0';
+
+            strncpy(entry->version, nacp.display_version, APP_VER_LEN - 1);
+            entry->version[APP_VER_LEN - 1] = '\0';
 
             fclose(fp);
         } break;
@@ -248,19 +254,22 @@ lv_res_t app_entry_init_info(app_entry_t *entry) {
                 config_destroy(&cfg);
                 return LV_RES_INV;
             }
-            strcpy(entry->name, tmp_str);
+            strncpy(entry->name, tmp_str, APP_NAME_LEN - 1);
+            entry->name[APP_NAME_LEN - 1] = '\0';
 
             if (config_setting_lookup_string(info, "author", &tmp_str) != CONFIG_TRUE) {
                 config_destroy(&cfg);
                 return LV_RES_INV;
             }
-            strcpy(entry->author, tmp_str);
+            strncpy(entry->author, tmp_str, APP_AUTHOR_LEN - 1);
+            entry->author[APP_AUTHOR_LEN - 1] = '\0';
 
             if (config_setting_lookup_string(info, "version", &tmp_str) != CONFIG_TRUE) {
                 config_destroy(&cfg);
                 return LV_RES_INV;
             }
-            strcpy(entry->version, tmp_str);
+            strncpy(entry->version, tmp_str, APP_VER_LEN - 1);
+            entry->version[APP_VER_LEN - 1] = '\0';
         } break;
 
         default:
@@ -271,10 +280,16 @@ lv_res_t app_entry_init_info(app_entry_t *entry) {
 }
 
 void app_entry_get_star_path(app_entry_t *entry, char *out_path) {
-    strcpy(out_path, entry->path);
-    strcpy(get_name(out_path), ".");
-    strcpy(get_name(out_path) + 1, get_name(entry->path));
-    strcat(out_path, ".star");
+    strncpy(out_path, entry->path, PATH_MAX);
+    out_path[PATH_MAX] = '\0';
+
+    char *out_name = get_name(out_path);
+    size_t out_name_len = strlen(out_name);
+
+    strncpy(out_name, ".", PATH_MAX - out_name_len);
+    strncpy(out_name + 1, get_name(entry->path), PATH_MAX - out_name_len - 1);
+
+    strcat(out_name, ".star");
 }
 
 lv_res_t app_entry_set_star(app_entry_t *entry, bool star) {
@@ -307,7 +322,8 @@ lv_res_t app_entry_delete(app_entry_t *entry) {
             return LV_RES_INV;
     } else {
         char del_path[PATH_MAX + 1];
-        strcpy(del_path, entry->path);
+        strncpy(del_path, entry->path, PATH_MAX);
+        del_path[PATH_MAX] = '\0';
 
         *(get_name(del_path)) = '\0';
 
@@ -398,9 +414,8 @@ lv_res_t app_entry_ll_init(lv_ll_t *ll) {
 
             while ((ep = readdir(dp))) {
                 char path[PATH_MAX + 1];
-                strcpy(path, tmp_path);
-                strcat(path, "/");
-                strcat(path, ep->d_name);
+                path[0] = '\0';
+                snprintf(path, sizeof(path), "%s/%s", tmp_path, ep->d_name);
 
                 if (get_app_type(path) != AppEntryType_none) {
                     if (app_entry_ll_ins(ll, path) != LV_RES_OK)

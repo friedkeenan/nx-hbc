@@ -11,12 +11,13 @@ typedef enum {
 } RemoteLoaderType;
 
 typedef struct {
-    bool use_gyro;
-    bool show_limit_warn;
+    bool use_gyro : 1;
+    bool show_limit_warn : 1;
+    bool use_fahrenheit : 1;
 
     #ifdef MUSIC
 
-    bool play_bgm;
+    bool play_bgm : 1;
 
     #endif
 

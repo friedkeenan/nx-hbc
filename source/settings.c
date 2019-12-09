@@ -12,6 +12,7 @@
 static settings_t g_default_settings = {
     .use_gyro = false,
     .show_limit_warn = true,
+    .use_fahrenheit = false,
 
     #ifdef MUSIC
 
@@ -61,6 +62,10 @@ lv_res_t settings_init() {
         if (config_setting_lookup_bool(settings, "show_limit_warn", &tmp_int) != CONFIG_TRUE)
             tmp_int = g_default_settings.show_limit_warn;
         g_curr_settings.show_limit_warn = tmp_int;
+
+        if (config_setting_lookup_bool(settings, "use_fahrenheit", &tmp_int) != CONFIG_TRUE)
+            tmp_int = g_default_settings.use_fahrenheit;
+        g_curr_settings.use_fahrenheit = tmp_int;
 
         #ifdef MUSIC
 

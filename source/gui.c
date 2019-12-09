@@ -11,7 +11,7 @@
 #include "remote.h"
 #include "remote_net.h"
 #include "limitations.h"
-#include "net_status.h"
+#include "status.h"
 #include "settings.h"
 #include "theme.h"
 #include "text.h"
@@ -62,6 +62,7 @@ static lv_obj_t *g_remote_percent = NULL;
 static lv_obj_t *g_remote_error_mbox = NULL;
 
 static lv_obj_t *g_net_icon = NULL;
+static lv_obj_t *g_thermal_label = NULL;
 
 static lv_style_t g_transp_style;
 
@@ -129,7 +130,7 @@ static void reset_menu_focused_on(char *path) {
     free_current_app_icons();
 
     char entry_path[PATH_MAX + 1];
-    strcpy(entry_path, path);
+    strncpy(entry_path, path, PATH_MAX);
 
     lv_ll_clear(&g_apps_ll);
     gen_apps_list();
@@ -304,7 +305,7 @@ static void draw_app_dialog() {
     const char *tmp_fmt = text_get(StrId_version);
     char version_text[strlen(tmp_fmt) - 2 + APP_VER_LEN + 1];
     version_text[0] = '\0';
-    sprintf(version_text, tmp_fmt, g_dialog_entry->version);
+    snprintf(version_text, APP_VER_LEN, tmp_fmt, g_dialog_entry->version);
 
     lv_obj_t *ver = lv_label_create(dialog_bg, NULL);
     lv_obj_set_style(ver, &curr_theme()->normal_28_style);
@@ -810,9 +811,11 @@ static void remote_progress_task(lv_task_t *task) {
         lv_bar_set_value(g_remote_bar, progress, LV_ANIM_OFF);
 
         const char *tmp_fmt = text_get(StrId_receiving);
-        char receiving[PATH_MAX + 1 + strlen(tmp_fmt) - 2];
+        size_t receiving_size = PATH_MAX + 1 + strlen(tmp_fmt) - 1;
+        char receiving[receiving_size];
         receiving[0] = '\0';
-        sprintf(receiving, tmp_fmt, get_name(g_remote_loader->entry.path));
+
+        snprintf(receiving, receiving_size, tmp_fmt, get_name(g_remote_loader->entry.path));
         lv_label_set_text(g_remote_name, receiving);
 
         char percent[8];
@@ -838,10 +841,10 @@ static void remote_progress_task(lv_task_t *task) {
     }
 }
 
-static void net_icon_task(lv_task_t *task) {
-    NetStatus status = get_net_status();
+static void net_status_task(lv_task_t *task) {
+    NetStatus net_status = get_net_status();
 
-    switch (status) {
+    switch (net_status) {
         case NetStatus_disconnected: {
             lv_img_set_src(g_net_icon, &curr_theme()->net_icons_dscs[0]);
         } break;
@@ -862,12 +865,46 @@ static void net_icon_task(lv_task_t *task) {
     }
 }
 
+void thermal_status_task(lv_task_t *task) {
+    s32 temp_milli;
+    lv_res_t res = get_thermal_status(&temp_milli);
+    if (res == LV_RES_OK) {
+        float temp = ((float) temp_milli) / 1000;
+        char unit = 'C';
+
+        if (curr_settings()->use_fahrenheit) {
+            temp = temp * 1.8 + 32;
+            unit = 'F';
+        }
+
+        size_t len = snprintf(NULL, 0, "%.1f%c", temp, unit);
+        char temp_text[len + 1];
+        sprintf(temp_text, "%.1f%c", temp, unit);
+
+        lv_label_set_text(g_thermal_label, temp_text);
+        lv_obj_align(g_thermal_label, g_net_icon, LV_ALIGN_OUT_LEFT_BOTTOM, -10, 0);
+    }
+}
+
 void setup_misc() {
     lv_obj_t *logo = lv_img_create(lv_scr_act(), NULL);
     lv_img_set_src(logo, &curr_theme()->logo_dsc);
     lv_obj_align(logo, NULL, LV_ALIGN_IN_BOTTOM_LEFT, 10, -32);
 
-    net_status_init();
+    if (status_init() == LV_RES_OK) {
+        g_net_icon = lv_img_create(lv_scr_act(), NULL);
+        lv_img_set_src(g_net_icon, &curr_theme()->net_icons_dscs[0]);
+        lv_obj_align(g_net_icon, NULL, LV_ALIGN_IN_BOTTOM_RIGHT, -28, -28);
+
+        lv_task_t *task = lv_task_create(net_status_task, 1000, LV_TASK_PRIO_MID, NULL);
+        lv_task_ready(task);
+
+        g_thermal_label = lv_label_create(lv_scr_act(), NULL);
+        lv_obj_set_style(g_thermal_label, &curr_theme()->normal_28_style);
+
+        task = lv_task_create(thermal_status_task, 5000, LV_TASK_PRIO_MID, NULL);
+        lv_task_ready(task);
+    }
 
     if (curr_settings()->remote_type != RemoteLoaderType_disabled) {
         if (curr_settings()->remote_type == RemoteLoaderType_net)
@@ -885,21 +922,16 @@ void setup_misc() {
         lv_obj_t *warn = lv_label_create(lv_scr_act(), NULL);
 
         const char *content = text_get(StrId_limit_warn);
-        char limit_text[strlen(content) + 5];
-        limit_text[0] = '\0';
-        sprintf(limit_text, LV_SYMBOL_WARNING " %s " LV_SYMBOL_WARNING, content);
+        size_t limit_text_len = snprintf(NULL, 0, LV_SYMBOL_WARNING " %s " LV_SYMBOL_WARNING, content);
+        char limit_text[limit_text_len + 1];
 
+        sprintf(limit_text, LV_SYMBOL_WARNING " %s " LV_SYMBOL_WARNING, content);
         lv_label_set_text(warn, limit_text);
 
         lv_obj_set_style(warn, &curr_theme()->warn_48_style);
         lv_obj_align(warn, NULL, LV_ALIGN_IN_BOTTOM_MID, 0, -20);
     }
 
-    g_net_icon = lv_img_create(lv_scr_act(), NULL);
-    lv_obj_align(g_net_icon, NULL, LV_ALIGN_IN_BOTTOM_RIGHT, -10, -10);
-
-    lv_task_t *task = lv_task_create(net_icon_task, 1000, LV_TASK_PRIO_MID, NULL);
-    lv_task_ready(task);
 }
 
 void gui_exit() {
@@ -908,5 +940,6 @@ void gui_exit() {
         logPrintf("thrd_join\n");
         thrd_join(g_remote_thread, NULL);
     }
-    net_status_exit();
+    
+    status_exit();
 }

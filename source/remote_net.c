@@ -47,7 +47,7 @@
 
 #include "apps.h"
 #include "log.h"
-#include "net_status.h"
+#include "status.h"
 #include "remote.h"
 #include "remote_net.h"
 
