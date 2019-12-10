@@ -848,28 +848,36 @@ static void power_status_task(lv_task_t *task) {
     bool charging;
 
     if (get_power_status(&level, &charging) == LV_RES_OK) {
-        char power_text[sizeof(LV_SYMBOL_BATTERY_1) + sizeof(LV_SYMBOL_CHARGE)];
+        //char power_text[sizeof(LV_SYMBOL_BATTERY_1) + sizeof(LV_SYMBOL_CHARGE)];
 
+        const char *battery;
         switch (level) {
             case 0:
-                strcpy(power_text, LV_SYMBOL_BATTERY_EMPTY);
+                battery = LV_SYMBOL_BATTERY_EMPTY;
                 break;
             case 1 ... 33:
-                strcpy(power_text, LV_SYMBOL_BATTERY_1);
+                battery = LV_SYMBOL_BATTERY_1;
                 break;
             case 34 ... 66:
-                strcpy(power_text, LV_SYMBOL_BATTERY_2);
+                battery = LV_SYMBOL_BATTERY_2;
                 break;
             case 67 ... 99:
-                strcpy(power_text, LV_SYMBOL_BATTERY_3);
+                battery = LV_SYMBOL_BATTERY_3;
                 break;
             default:
-                strcpy(power_text, LV_SYMBOL_BATTERY_FULL);
+                battery = LV_SYMBOL_BATTERY_FULL;
         }
-        power_text[sizeof(LV_SYMBOL_BATTERY_1)] = '\0';
 
+
+        const char *fmt;
         if (charging)
-            strcat(power_text, " " LV_SYMBOL_CHARGE);
+            fmt = "%s " LV_SYMBOL_CHARGE " %d%%";
+        else
+            fmt = "%s %d%%";
+
+        size_t power_text_len = snprintf(NULL, 0, fmt, battery, level);
+        char power_text[power_text_len + 1];
+        sprintf(power_text, fmt, battery, level);
 
         lv_label_set_text(g_power_label, power_text);
         
@@ -931,10 +939,10 @@ void setup_misc() {
     if (status_init() == LV_RES_OK) {
         g_power_label = lv_label_create(lv_scr_act(), NULL);
         lv_obj_set_style(g_power_label, &curr_theme()->normal_48_style);
-        lv_label_set_text(g_power_label, LV_SYMBOL_BATTERY_EMPTY);
+        lv_label_set_text(g_power_label, LV_SYMBOL_BATTERY_EMPTY "0%");
         lv_obj_align(g_power_label, NULL, LV_ALIGN_IN_BOTTOM_RIGHT, -28, -28);
 
-        lv_task_t *task = lv_task_create(power_status_task, 5000, LV_TASK_PRIO_MID, NULL);
+        lv_task_t *task = lv_task_create(power_status_task, 2500, LV_TASK_PRIO_MID, NULL);
         lv_task_ready(task);
 
         g_net_icon = lv_img_create(lv_scr_act(), NULL);
