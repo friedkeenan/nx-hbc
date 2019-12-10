@@ -69,6 +69,9 @@ typedef struct {
 
     lv_style_t dark_opa_64_style;
 
+    lv_style_t status_28_style;
+    lv_style_t status_48_style;
+
     lv_style_t normal_16_style;
     lv_style_t normal_22_style;
     lv_style_t normal_28_style;

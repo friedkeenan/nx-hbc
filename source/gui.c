@@ -938,7 +938,7 @@ void setup_misc() {
 
     if (status_init() == LV_RES_OK) {
         g_power_label = lv_label_create(lv_scr_act(), NULL);
-        lv_obj_set_style(g_power_label, &curr_theme()->normal_48_style);
+        lv_obj_set_style(g_power_label, &curr_theme()->status_48_style);
         lv_label_set_text(g_power_label, LV_SYMBOL_BATTERY_EMPTY "0%");
         lv_obj_align(g_power_label, NULL, LV_ALIGN_IN_BOTTOM_RIGHT, -28, -28);
 
@@ -953,7 +953,7 @@ void setup_misc() {
         lv_task_ready(task);
 
         g_thermal_label = lv_label_create(lv_scr_act(), NULL);
-        lv_obj_set_style(g_thermal_label, &curr_theme()->normal_28_style);
+        lv_obj_set_style(g_thermal_label, &curr_theme()->status_28_style);
 
         task = lv_task_create(thermal_status_task, 5000, LV_TASK_PRIO_MID, NULL);
         lv_task_ready(task);

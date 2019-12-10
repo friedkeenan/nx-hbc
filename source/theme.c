@@ -209,6 +209,12 @@ static void theme_init_styles(theme_t *theme) {
     lv_style_copy(&theme->dark_opa_64_style, &lv_style_plain);
     theme->dark_opa_64_style.body.opa = 64;
 
+    lv_style_copy(&theme->status_28_style, &lv_style_plain);
+    theme->status_28_style.text.font = &lv_font_roboto_28;
+
+    lv_style_copy(&theme->status_48_style, &lv_style_plain);
+    theme->status_48_style.text.font = &lv_font_roboto_48;
+
     lv_style_copy(&theme->normal_16_style, &lv_style_plain);
 
     lv_style_copy(&theme->normal_22_style, &lv_style_plain);
@@ -284,6 +290,11 @@ static lv_res_t theme_load_styles(theme_t *theme, unzFile zf) {
     if (config_setting_lookup_color(styles, "dark_cover_color", &tmp_col) == CONFIG_TRUE) {
         theme->dark_opa_64_style.body.main_color = tmp_col;
         theme->dark_opa_64_style.body.grad_color = tmp_col;
+    }
+
+    if (config_setting_lookup_color(styles, "status_text_color", &tmp_col) == CONFIG_TRUE) {
+        theme->status_28_style.text.color = tmp_col;
+        theme->status_48_style.text.color = tmp_col;
     }
 
     if (config_setting_lookup_color(styles, "normal_text_color", &tmp_col) == CONFIG_TRUE) {
