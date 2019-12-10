@@ -63,6 +63,7 @@ static lv_obj_t *g_remote_error_mbox = NULL;
 
 static lv_obj_t *g_net_icon = NULL;
 static lv_obj_t *g_thermal_label = NULL;
+static lv_obj_t *g_power_label = NULL;
 
 static lv_style_t g_transp_style;
 
@@ -842,6 +843,42 @@ static void remote_progress_task(lv_task_t *task) {
     }
 }
 
+static void power_status_task(lv_task_t *task) {
+    u32 level;
+    bool charging;
+
+    if (get_power_status(&level, &charging) == LV_RES_OK) {
+        char power_text[sizeof(LV_SYMBOL_BATTERY_1) + sizeof(LV_SYMBOL_CHARGE)];
+
+        switch (level) {
+            case 0:
+                strcpy(power_text, LV_SYMBOL_BATTERY_EMPTY);
+                break;
+            case 1 ... 33:
+                strcpy(power_text, LV_SYMBOL_BATTERY_1);
+                break;
+            case 34 ... 66:
+                strcpy(power_text, LV_SYMBOL_BATTERY_2);
+                break;
+            case 67 ... 99:
+                strcpy(power_text, LV_SYMBOL_BATTERY_3);
+                break;
+            default:
+                strcpy(power_text, LV_SYMBOL_BATTERY_FULL);
+        }
+        power_text[sizeof(LV_SYMBOL_BATTERY_1)] = '\0';
+
+        if (charging)
+            strcat(power_text, " " LV_SYMBOL_CHARGE);
+
+        lv_label_set_text(g_power_label, power_text);
+        
+        lv_obj_align(g_power_label, NULL, LV_ALIGN_IN_BOTTOM_RIGHT, -28, -28);
+        lv_obj_align(g_net_icon, g_power_label, LV_ALIGN_OUT_LEFT_MID, -10, 0);
+        lv_obj_align(g_thermal_label, g_net_icon, LV_ALIGN_OUT_LEFT_BOTTOM, -10, 0);
+    }
+}
+
 static void net_status_task(lv_task_t *task) {
     NetStatus net_status = get_net_status();
 
@@ -866,10 +903,9 @@ static void net_status_task(lv_task_t *task) {
     }
 }
 
-void thermal_status_task(lv_task_t *task) {
+static void thermal_status_task(lv_task_t *task) {
     s32 temp_milli;
-    lv_res_t res = get_thermal_status(&temp_milli);
-    if (res == LV_RES_OK) {
+    if (get_thermal_status(&temp_milli) == LV_RES_OK) {
         float temp = ((float) temp_milli) / 1000;
         char unit = 'C';
 
@@ -893,11 +929,19 @@ void setup_misc() {
     lv_obj_align(logo, NULL, LV_ALIGN_IN_BOTTOM_LEFT, 10, -32);
 
     if (status_init() == LV_RES_OK) {
+        g_power_label = lv_label_create(lv_scr_act(), NULL);
+        lv_obj_set_style(g_power_label, &curr_theme()->normal_48_style);
+        lv_label_set_text(g_power_label, LV_SYMBOL_BATTERY_EMPTY);
+        lv_obj_align(g_power_label, NULL, LV_ALIGN_IN_BOTTOM_RIGHT, -28, -28);
+
+        lv_task_t *task = lv_task_create(power_status_task, 5000, LV_TASK_PRIO_MID, NULL);
+        lv_task_ready(task);
+
         g_net_icon = lv_img_create(lv_scr_act(), NULL);
         lv_img_set_src(g_net_icon, &curr_theme()->net_icons_dscs[0]);
-        lv_obj_align(g_net_icon, NULL, LV_ALIGN_IN_BOTTOM_RIGHT, -28, -28);
+        lv_obj_align(g_net_icon, g_power_label, LV_ALIGN_OUT_LEFT_MID, -10, 0);
 
-        lv_task_t *task = lv_task_create(net_status_task, 1000, LV_TASK_PRIO_MID, NULL);
+        task = lv_task_create(net_status_task, 1000, LV_TASK_PRIO_MID, NULL);
         lv_task_ready(task);
 
         g_thermal_label = lv_label_create(lv_scr_act(), NULL);

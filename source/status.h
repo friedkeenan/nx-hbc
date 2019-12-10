@@ -14,3 +14,5 @@ void status_exit();
 NetStatus get_net_status();
 
 lv_res_t get_thermal_status(s32 *temp);
+
+lv_res_t get_power_status(u32 *level, bool *charging);

@@ -61,7 +61,9 @@ static bool touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
 static bool keypad_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
     hidScanInput();
 
-    u64 pressed = hidKeysHeld(CONTROLLER_P1_AUTO);
+    u64 pressed = 0;
+    for (int i = 0; i < 10; i++)
+        pressed |= hidKeysHeld(i);
 
     data->state = LV_INDEV_STATE_PR;
 
