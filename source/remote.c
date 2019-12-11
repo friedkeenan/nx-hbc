@@ -236,15 +236,15 @@ static int recv_app(remote_loader_t *r) {
                     char *args_buf_end = args_buf + args_len;
 
                     while (args_buf_tmp < args_buf_end) {
-                        logPrintf("args_buf_tmp(%s)\n", args_buf_tmp);
-                        app_entry_add_arg(&r->entry, args_buf_tmp);
+                        if (app_entry_add_arg(&r->entry, args_buf_tmp) != LV_RES_OK)
+                            break;
 
                         args_buf_tmp += strlen(args_buf) + 1;
                     }
 
                     logPrintf("args 1: %s\n", r->entry.args);
                     if (r->add_args_cb != NULL)
-                        r->add_args_cb(r); // For example the socket loader would add the _NXLINK_ arg
+                        r->add_args_cb(r); // For example the net loader would add the _NXLINK_ arg
                     logPrintf("args 2: %s\n", r->entry.args);
                 }
             }

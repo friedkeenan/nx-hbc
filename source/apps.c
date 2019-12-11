@@ -338,13 +338,23 @@ lv_res_t app_entry_delete(app_entry_t *entry) {
     return LV_RES_OK;
 }
 
-void app_entry_add_arg(app_entry_t *entry, char *arg) {
+lv_res_t app_entry_add_arg(app_entry_t *entry, char *arg) {
+    size_t new_arg_len = strlen(entry->args) + strlen(arg) + 3;
+
+    if (entry->args[0] == '\0')
+        new_arg_len--;
+
+    if (new_arg_len >= APP_ARGS_LEN)
+        return LV_RES_INV;
+
     if (entry->args[0] != '\0')
         strcat(entry->args, " ");
 
     strcat(entry->args, "\"");
     strcat(entry->args, arg);
     strcat(entry->args, "\"");
+
+    return LV_RES_OK;
 }
 
 lv_res_t app_entry_load(app_entry_t *entry) {

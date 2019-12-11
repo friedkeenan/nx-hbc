@@ -36,6 +36,7 @@ bool should_loop() {
 
 int main(int argc, char **argv) {
     appletLockExit();
+    appletSetScreenShotPermission(AppletScreenShotPermission_Enable);
 
     logInitialize("sdmc:/hbc.log");
     
@@ -43,12 +44,6 @@ int main(int argc, char **argv) {
     
     settings_init();
     theme_init();
-
-    /*#ifdef MUSIC
-
-    music_thread(NULL);
-
-    #endif*/
 
     driversInitialize();
     
