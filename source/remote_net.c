@@ -290,9 +290,8 @@ static void net_add_args_cb(remote_loader_t *r) {
     net_data_t *data = r->custom_data;
 
     char arg[17];
-    arg[0] = '\0';
-
     sprintf(arg, "%08x_NXLINK_", data->host);
+
     app_entry_add_arg(&r->entry, arg);
 }
 

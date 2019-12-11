@@ -239,7 +239,7 @@ static int recv_app(remote_loader_t *r) {
                         if (app_entry_add_arg(&r->entry, args_buf_tmp) != LV_RES_OK)
                             break;
 
-                        args_buf_tmp += strlen(args_buf) + 1;
+                        args_buf_tmp += strlen(args_buf_tmp) + 1;
                     }
 
                     logPrintf("args 1: %s\n", r->entry.args);
