@@ -335,6 +335,9 @@ static void draw_app_dialog() {
 
     button_labels[0] = lv_label_create(g_dialog_buttons[0], NULL);
     lv_obj_set_style(button_labels[0], &curr_theme()->normal_28_style);
+    lv_label_set_align(button_labels[0], LV_LABEL_ALIGN_CENTER);
+    lv_label_set_long_mode(button_labels[0], LV_LABEL_LONG_SROLL);
+    lv_obj_set_width(button_labels[0], DIALOG_BTN_W - 10);
     lv_label_set_static_text(button_labels[0], text_get(StrId_delete));
 
     for (int i = 1; i < DialogButton_max; i++) {
