@@ -40,31 +40,37 @@ static const char *g_strings[StrId_max][SetLanguage_Total] = {
     [StrId_limit_warn] = {
         STR_EN("Applet Mode"),
         STR_DE("Applet Modus"),
+        STR_ES("Modo Applet"),
     },
 
     [StrId_version] = {
         STR_EN("Version: %s"),
         STR_DE("Version: %s"),
+        STR_ES("Versi\xF3n: %s"),
     },
 
     [StrId_author] = {
         STR_EN("Author: "),
         STR_DE("Autor: "),
+        STR_ES("Autor: "),
     },
 
     [StrId_receiving] = {
         STR_EN("Receiving: %s"),
         STR_DE("Empfangen: %s"),
+        STR_ES("Recibiendo: %s"),
     },
 
     [StrId_error] = {
         STR_EN("An error has\noccured"),
         STR_DE("Ein Fehler ist\naufgetreten"),
+        STR_ES("Ha ocurrido\nun error"),
     },
 
     [StrId_ok] = {
         STR_EN("OK"),
         STR_DE("OK"),
+        STR_ES("OK"),
     },
 
     [StrId_no_apps] = {
@@ -78,31 +84,41 @@ static const char *g_strings[StrId_max][SetLanguage_Total] = {
             "Bitte packe deine Apps in\n"
             "\"" APP_DIR "\""
         ),
+        STR_ES(
+            "\xA1No tienes aplicaciones!\n"
+            "Por favor, gu\xE1rdalas en\n"
+            "\"" APP_DIR "\""
+        ),
     },
 
     [StrId_delete] = {
         STR_EN("Delete"),
         STR_DE("Löschen"),
+        STR_ES("Eliminar"),
     },
 
     [StrId_load] = {
         STR_EN("Load"),
         STR_DE("Laden"),
+        STR_ES("Cargar"),
     },
 
     [StrId_star] = {
         STR_EN("Star"),
         STR_DE("Favorisieren"),
+        STR_ES("Agregar a favoritos"),
     },
 
     [StrId_back] = {
         STR_EN("Back"),
         STR_DE("Zurück"),
+        STR_ES("Regresar"),
     },
 
     [StrId_unstar] = {
         STR_EN("Unstar"),
         STR_DE("Unfavorisieren"),
+        STR_ES("Remover de favoritos"),
     },
 };
 
