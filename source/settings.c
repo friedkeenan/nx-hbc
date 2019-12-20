@@ -34,7 +34,7 @@ static inline u64 str_to_lang_code(const char *str) {
         if (str[i] == '\0')
             break;
 
-        code |= str[i] << 8 * str[i];
+        code |= str[i] << (8 * i);
     }
 
     return code;
