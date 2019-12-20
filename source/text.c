@@ -39,26 +39,32 @@
 static const char *g_strings[StrId_max][SetLanguage_Total] = {
     [StrId_limit_warn] = {
         STR_EN("Applet Mode"),
+        STR_DE("Applet Modus"),
     },
 
     [StrId_version] = {
         STR_EN("Version: %s"),
+        STR_DE("Version: %s"),
     },
 
     [StrId_author] = {
         STR_EN("Author: "),
+        STR_DE("Autor: "),
     },
 
     [StrId_receiving] = {
         STR_EN("Receiving: %s"),
+        STR_DE("Empfangen: %s"),
     },
 
     [StrId_error] = {
         STR_EN("An error has\noccured"),
+        STR_DE("Ein Fehler ist\naufgetreten"),
     },
 
     [StrId_ok] = {
         STR_EN("OK"),
+        STR_DE("OK"),
     },
 
     [StrId_no_apps] = {
@@ -67,26 +73,36 @@ static const char *g_strings[StrId_max][SetLanguage_Total] = {
             "Please put your apps under\n"
             "\"" APP_DIR "\""
         ),
+        STR_DE(
+            "Du hast keine Apps!\n"
+            "Bitte packe deine Apps in\n"
+            "\"" APP_DIR "\""
+        ),
     },
 
     [StrId_delete] = {
         STR_EN("Delete"),
+        STR_DE("Löschen"),
     },
 
     [StrId_load] = {
         STR_EN("Load"),
+        STR_DE("Laden"),
     },
 
     [StrId_star] = {
         STR_EN("Star"),
+        STR_DE("Favorisieren"),
     },
 
     [StrId_back] = {
         STR_EN("Back"),
+        STR_DE("Zurück"),
     },
 
     [StrId_unstar] = {
         STR_EN("Unstar"),
+        STR_DE("Unfavorisieren"),
     },
 };
 
