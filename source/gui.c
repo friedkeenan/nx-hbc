@@ -39,6 +39,9 @@ static lv_obj_t *g_list_buttons_tmp[MAX_LIST_ROWS] = {0};
 static lv_obj_t *g_list_covers[MAX_LIST_ROWS] = {0}; // Needed because when objects are direct children of an imgbtn, they're always centered (don't know why)
 static lv_obj_t *g_list_covers_tmp[MAX_LIST_ROWS] = {0};
 
+static app_entry_t *g_list_entries[MAX_LIST_ROWS] = {0};
+static app_entry_t *g_list_entries_tmp[MAX_LIST_ROWS] = {0};
+
 static lv_obj_t *g_dialog_buttons[DialogButton_max] = {0};
 static lv_obj_t *g_dialog_cover = NULL;
 static app_entry_t *g_dialog_entry = NULL;
@@ -101,12 +104,8 @@ static app_entry_t *get_app_for_button(int btn_idx) {
 }
 
 static void free_current_app_icons() {
-    app_entry_t *entry = get_app_for_button(0);
-
-    for (int i = 0; i < num_buttons(); i++) {
-        app_entry_free_icon(entry);
-        entry = lv_ll_get_next(&g_apps_ll, entry);
-    }
+    for (int i = 0; i < num_buttons(); i++)
+        app_entry_free_icon(g_list_entries[i]);
 }
 
 static void del_buttons() {
@@ -249,7 +248,6 @@ static void dialog_button_event(lv_obj_t *obj, lv_event_t event) {
                 } break;
 
                 case DialogButton_load: {
-                    logPrintf("g_dialog_entry(path(%s))\n", g_dialog_entry->path);
                     app_entry_load(g_dialog_entry);
                 } break;
 
@@ -272,6 +270,8 @@ static void dialog_button_event(lv_obj_t *obj, lv_event_t event) {
 
 static void draw_app_dialog() {
     g_curr_focused_tmp = g_list_buttons[g_list_index];
+    g_dialog_entry = g_list_entries[g_list_index];
+
     lv_event_send(g_curr_focused_tmp, LV_EVENT_DEFOCUSED, NULL);
     lv_group_remove_all_objs(keypad_group());
 
@@ -281,10 +281,7 @@ static void draw_app_dialog() {
 
     lv_obj_t *dialog_bg = lv_img_create(g_dialog_cover, NULL);
     lv_img_set_src(dialog_bg, &curr_theme()->dialog_bg_dsc);
-
     lv_obj_align(dialog_bg, NULL, LV_ALIGN_CENTER, 0, 0);
-
-    g_dialog_entry = get_app_for_button(g_list_index);
 
     lv_obj_t *name = lv_label_create(dialog_bg, NULL);
     lv_obj_set_style(name, &curr_theme()->normal_48_style);
@@ -531,7 +528,7 @@ static void list_ready_cb(lv_anim_t *anim) {
 
     int anim_idx = (lv_obj_get_y(anim_obj) - (LV_VER_RES_MAX - LIST_BTN_H * MAX_LIST_ROWS) / 2) / LIST_BTN_H;
 
-    app_entry_t *entry = get_app_for_button(((dir < 0) ? MAX_LIST_ROWS : -MAX_LIST_ROWS) + anim_idx);
+    app_entry_t *entry = g_list_entries[anim_idx];
 
     if (entry != NULL)
         app_entry_free_icon(entry);
@@ -544,18 +541,20 @@ static void list_ready_cb(lv_anim_t *anim) {
     lv_anim_del(anim_obj, anim->exec_cb);
     lv_obj_del(anim_obj);
 
+    g_list_buttons[anim_idx] = g_list_buttons_tmp[anim_idx];
+    g_list_covers[anim_idx] = g_list_covers_tmp[anim_idx];
+    g_list_entries[anim_idx] = g_list_entries_tmp[anim_idx];
+
+    g_list_buttons_tmp[anim_idx] = NULL;
+    g_list_covers_tmp[anim_idx] = NULL;
+    g_list_entries_tmp[anim_idx] = NULL;
+    
     if (anim_idx == MAX_LIST_ROWS - 1) {
         g_page_list_anim_running = false;
 
         if (!g_page_arrow_anim_running)
             page_anim_cleanup();
     }
-
-    g_list_buttons[anim_idx] = g_list_buttons_tmp[anim_idx];
-    g_list_covers[anim_idx] = g_list_covers_tmp[anim_idx];
-
-    g_list_buttons_tmp[anim_idx] = NULL;
-    g_list_covers_tmp[anim_idx] = NULL;
 }
 
 static void arrow_ready_cb(lv_anim_t *anim) {
@@ -568,13 +567,7 @@ static void arrow_ready_cb(lv_anim_t *anim) {
         idx = 1;
 
     lv_anim_del(anim->var, anim->exec_cb);
-
-    if ((idx == 1 && g_curr_page > 0) || (idx == 0 && g_curr_page == 0)) {
-        g_page_arrow_anim_running = false;
-
-        if (!g_page_list_anim_running)
-            page_anim_cleanup();
-    }
+    lv_anim_clear_playback(&g_page_arrow_anims[idx]);
 
     if ((idx == 1 && on_last_page()) || (idx == 0 && g_curr_page == 0)) {
         int del_idx;
@@ -587,11 +580,15 @@ static void arrow_ready_cb(lv_anim_t *anim) {
         g_arrow_buttons[del_idx] = NULL;
     }
 
-    lv_anim_clear_playback(&g_page_arrow_anims[idx]);
+    if ((idx == 1 && g_curr_page > 0) || (idx == 0 && g_curr_page == 0)) {
+        g_page_arrow_anim_running = false;
+
+        if (!g_page_list_anim_running)
+            page_anim_cleanup();
+    }
 }
 
 static void change_page(int dir) {
-    logPrintf("change_page start\n");
     g_page_list_anim_running = true;
     g_page_arrow_anim_running = true;
 
@@ -619,8 +616,9 @@ static void change_page(int dir) {
         }
     }
 
-    app_entry_t *entry = get_app_for_button(((dir < 0) ? -1 : 1) * MAX_LIST_ROWS);
     g_curr_page += dir;
+    app_entry_t *entry = get_app_for_button(0);
+
     for (int i = 0; i < num_buttons(); i++) {
         g_list_buttons_tmp[i] = lv_imgbtn_create(anim_objs[i], g_list_buttons[0]);
         g_list_buttons_tmp[i]->group_p = keypad_group(); // Needed because sometimes the group_p member is set to NULL even though the copied object's isn't
@@ -629,6 +627,8 @@ static void change_page(int dir) {
 
         if (i > 0)
             entry = lv_ll_get_next(&g_apps_ll, entry);
+
+        g_list_entries_tmp[i] = entry;
 
         app_entry_init_icon(entry);
         draw_entry_on_obj(g_list_covers_tmp[i], entry);
@@ -639,8 +639,6 @@ static void change_page(int dir) {
     for (int i = 0; i < MAX_LIST_ROWS; i++) {
         lv_anim_set_exec_cb(&g_page_list_anims[i], anim_objs[i], (lv_anim_exec_xcb_t) lv_obj_set_x);
         lv_anim_set_values(&g_page_list_anims[i], lv_obj_get_x(anim_objs[i]), lv_obj_get_x(anim_objs[i]) + ((dir < 0) ? 1 : -1) * LV_HOR_RES_MAX);
-
-        lv_anim_create(&g_page_list_anims[i]);
     }
 
     for (int i = 0; i < 2; i++) {
@@ -659,15 +657,18 @@ static void change_page(int dir) {
         }
         
         lv_anim_set_exec_cb(&g_page_arrow_anims[i], g_arrow_buttons[i], (lv_anim_exec_xcb_t) lv_obj_set_x);
-        
-        lv_anim_create(&g_page_arrow_anims[i]);
     }
-    logPrintf("change_page end\n");
+
+    for (int i = 0; i < MAX_LIST_ROWS; i++)
+        lv_anim_create(&g_page_list_anims[i]);
+
+    for (int i = 0; i < 2; i++)
+        lv_anim_create(&g_page_arrow_anims[i]);
 }
 
 static void draw_buttons() {
-    if (num_buttons() <= 0)
-        g_curr_page = 0;
+    while (num_buttons() <= 0 && g_curr_page > 0)
+        g_curr_page--;
 
     if (num_buttons() <= 0) {
         lv_obj_t *mbox = lv_mbox_create(lv_scr_act(), NULL);
@@ -696,6 +697,8 @@ static void draw_buttons() {
     lv_obj_set_size(g_list_covers[0], LIST_BTN_W, LIST_BTN_H);
 
     app_entry_t *entry = get_app_for_button(0);
+    g_list_entries[0] = entry;
+
     app_entry_init_icon(entry);
     draw_entry_on_obj(g_list_covers[0], entry);
 
@@ -704,6 +707,8 @@ static void draw_buttons() {
         g_list_covers[i] = lv_obj_create(g_list_buttons[i], g_list_covers[i - 1]);
 
         entry = lv_ll_get_next(&g_apps_ll, entry);
+        g_list_entries[i] = entry;
+
         app_entry_init_icon(entry);
         draw_entry_on_obj(g_list_covers[i], entry);
 

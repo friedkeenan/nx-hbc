@@ -114,7 +114,7 @@ static lv_res_t jpg_dec_open(lv_img_decoder_t *dec, lv_img_decoder_dsc_t *dsc) {
         return LV_RES_INV;
     }
 
-    u8 *img_data = tjAlloc(w * h * sizeof(lv_color_t));
+    u8 *img_data = lv_mem_alloc(w * h * sizeof(lv_color_t));
 
     if (tjDecompress2(decomp, img_dsc->data, img_dsc->data_size, img_data, w, 0, h, TJPF_BGRA, TJFLAG_ACCURATEDCT)) {
         tjFree(img_data);
@@ -122,18 +122,18 @@ static lv_res_t jpg_dec_open(lv_img_decoder_t *dec, lv_img_decoder_dsc_t *dsc) {
         return LV_RES_INV;
     }
 
-    u8 *resized_data = tjAlloc(img_dsc->header.w * img_dsc->header.h * sizeof(lv_color_t));
+    u8 *resized_data = lv_mem_alloc(img_dsc->header.w * img_dsc->header.h * sizeof(lv_color_t));
     downscale_img(img_data, resized_data, w, h, img_dsc->header.w, img_dsc->header.h);
 
     dsc->img_data = resized_data;
 
-    tjFree(img_data);
+    lv_mem_free(img_data);
     tjDestroy(decomp);
     return LV_RES_OK;
 }
 
 static void jpg_dec_close(lv_img_decoder_t *dec, lv_img_decoder_dsc_t *dsc) {
-    tjFree((unsigned char *) dsc->img_data);
+    lv_mem_free(dsc->img_data);
 }
 
 

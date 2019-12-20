@@ -476,6 +476,6 @@ int remote_loader_thread(void *arg) {
 
     remote_loader_exit(r);
 
-    logPrintf("exit remote");
+    logPrintf("exit remote\n");
     return 0;
 }
