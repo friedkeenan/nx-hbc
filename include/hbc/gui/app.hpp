@@ -183,7 +183,19 @@ namespace hbc::gui {
                         return std::nullopt;
                     }
 
-                    if (!file.seek(4 + 0x10 * AssetIndex).has_value()) {
+                    /* If we don't know the format version, then we give up. */
+                    const auto assets_format_version = file.read_little_endian<std::uint32_t>();
+                    if (!assets_format_version.has_value()) {
+                        return std::nullopt;
+                    }
+
+                    static constexpr std::uint32_t MaxSupportedFormatVersion = 0;
+
+                    if (assets_format_version.value() > MaxSupportedFormatVersion) {
+                        return std::nullopt;
+                    }
+
+                    if (!file.seek(0x10 * AssetIndex).has_value()) {
                         return std::nullopt;
                     }
 
