@@ -1,7 +1,3 @@
-build/
-*.elf
-*.nacp
-*.nro
-romfs/*
-*.log
-*__pycache__*
+build*/
+switch.txt
+.wraplock

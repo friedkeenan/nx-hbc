@@ -1,0 +1,9 @@
+[hbc.meta]
+name    = "Dark Waters"
+author  = "drmr"
+version = "1.0.0"
+
+[hbc.style]
+normal_text_color         = 0xFFFFFF
+warn_text_color           = 0xFF0000
+darkened_background_color = 0x000000
